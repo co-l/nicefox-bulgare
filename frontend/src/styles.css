@@ -1,0 +1,155 @@
+:root {
+  --bs-body-bg: #121212;
+  --bs-body-color: #e0e0e0;
+  --bs-primary: #7c4dff;
+  --bs-primary-rgb: 124, 77, 255;
+}
+
+body {
+  background-color: #121212;
+  min-height: 100vh;
+}
+
+.card {
+  background-color: #1e1e1e;
+  border-color: #2d2d2d;
+}
+
+.navbar {
+  background-color: #1a1a2e !important;
+}
+
+.form-control, .form-select {
+  background-color: #2d2d2d;
+  border-color: #3d3d3d;
+  color: #e0e0e0;
+}
+
+.form-control:focus, .form-select:focus {
+  background-color: #2d2d2d;
+  border-color: #7c4dff;
+  color: #e0e0e0;
+  box-shadow: 0 0 0 0.25rem rgba(124, 77, 255, 0.25);
+}
+
+.btn-primary {
+  background-color: #7c4dff;
+  border-color: #7c4dff;
+}
+
+.btn-primary:hover {
+  background-color: #651fff;
+  border-color: #651fff;
+}
+
+.list-group-item {
+  background-color: #1e1e1e;
+  border-color: #2d2d2d;
+  color: #e0e0e0;
+}
+
+.list-group-item.active {
+  background-color: #7c4dff;
+  border-color: #7c4dff;
+}
+
+.list-group-item-action:hover {
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+}
+
+.bg-light {
+  background-color: #1a1a1a !important;
+}
+
+.border-end {
+  border-color: #2d2d2d !important;
+}
+
+.border-bottom {
+  border-color: #2d2d2d !important;
+}
+
+.border-top {
+  border-color: #2d2d2d !important;
+}
+
+.text-muted {
+  color: #888 !important;
+}
+
+.dropdown-menu {
+  background-color: #1e1e1e;
+  border-color: #2d2d2d;
+}
+
+.dropdown-item {
+  color: #e0e0e0;
+}
+
+.dropdown-item:hover {
+  background-color: #2d2d2d;
+  color: #fff;
+}
+
+.spinner-border {
+  color: #7c4dff !important;
+}
+
+.badge.bg-primary {
+  background-color: #7c4dff !important;
+}
+
+.badge.bg-info {
+  background-color: #00bcd4 !important;
+}
+
+.badge.bg-warning {
+  background-color: #ff9800 !important;
+  color: #000 !important;
+}
+
+.badge.bg-success {
+  background-color: #4caf50 !important;
+}
+
+.alert-danger {
+  background-color: #3d1f1f;
+  border-color: #5c2b2b;
+  color: #f8d7da;
+}
+
+.alert-success {
+  background-color: #1f3d1f;
+  border-color: #2b5c2b;
+  color: #d4edda;
+}
+
+/* Chat styles */
+.bg-primary {
+  background-color: #7c4dff !important;
+}
+
+/* Clickable words in chat */
+.clickable-word:hover {
+  background-color: rgba(124, 77, 255, 0.3);
+  border-radius: 2px;
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3d3d3d;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4d4d4d;
+}
