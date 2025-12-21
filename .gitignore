@@ -30,3 +30,10 @@ coverage/
 # Misc
 *.tgz
 .cache/
+
+# Python venv
+.venv/
+
+# Piper TTS
+.piper-voices/
+audio-cache/

@@ -7,6 +7,7 @@ import userRoutes from './routes/user.js'
 import flashcardRoutes from './routes/flashcards.js'
 import chatRoutes from './routes/chat.js'
 import translateRoutes from './routes/translate.js'
+import ttsRoutes from './routes/tts.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -31,6 +32,7 @@ app.use('/api/user', userRoutes)
 app.use('/api/flashcards', flashcardRoutes)
 app.use('/api/chat', chatRoutes)
 app.use('/api/translate', translateRoutes)
+app.use('/api/tts', ttsRoutes)
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('Error:', err.message)

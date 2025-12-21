@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, FormEvent } from 'react'
+import { useState, useEffect, useRef, FormEvent, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import ClickableMessage from '../components/ClickableMessage'
+import { useTTS } from '../hooks/useTTS'
 import api from '../services/api'
 import type { ChatMessage, Chat as ChatType } from '../types'
 
@@ -13,7 +14,22 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [playingIdx, setPlayingIdx] = useState<number | null>(null)
+  const [autoRead, setAutoRead] = useState(() => {
+    const saved = localStorage.getItem('autoRead')
+    return saved !== null ? saved === 'true' : true
+  })
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const { isLoading: ttsLoading, isPlaying, speak, stop } = useTTS()
+
+  const toggleAutoRead = useCallback(() => {
+    setAutoRead(prev => {
+      const newValue = !prev
+      localStorage.setItem('autoRead', String(newValue))
+      return newValue
+    })
+  }, [])
 
   useEffect(() => {
     fetchChatHistory()
@@ -27,6 +43,13 @@ export default function Chat() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Focus input when sending completes or loading finishes
+  useEffect(() => {
+    if (!isSending && !isLoading) {
+      inputRef.current?.focus()
+    }
+  }, [isSending, isLoading])
 
   const fetchChatHistory = async () => {
     try {
@@ -77,6 +100,13 @@ export default function Chat() {
 
       setMessages((prev) => [...prev, assistantMessage])
 
+      // Auto-read the new message (after state update)
+      if (autoRead) {
+        const newIdx = messages.length + 1 // +1 for user msg, +1 for assistant = current length + 1
+        setPlayingIdx(newIdx)
+        speak(assistantMessage.content).then(() => setPlayingIdx(null))
+      }
+
       if (!chatId && response.data.chatId) {
         navigate(`/chat/${response.data.chatId}`, { replace: true })
       }
@@ -102,13 +132,34 @@ export default function Chat() {
     setMessages([])
     try {
       const response = await api.post('/chat/start')
-      setMessages(response.data.messages || [])
+      const newMessages = response.data.messages || []
+      setMessages(newMessages)
       navigate(`/chat/${response.data.chatId}`, { replace: true })
       await fetchChatHistory()
+
+      // Auto-read the greeting message
+      if (autoRead && newMessages.length > 0) {
+        const lastMsg = newMessages[newMessages.length - 1]
+        if (lastMsg.role === 'assistant') {
+          setPlayingIdx(newMessages.length - 1)
+          speak(lastMsg.content).then(() => setPlayingIdx(null))
+        }
+      }
     } catch (err) {
       console.error('Failed to start chat:', err)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleTTS = async (text: string, idx: number) => {
+    if (isPlaying && playingIdx === idx) {
+      stop()
+      setPlayingIdx(null)
+    } else {
+      setPlayingIdx(idx)
+      await speak(text)
+      setPlayingIdx(null)
     }
   }
 
@@ -146,6 +197,20 @@ export default function Chat() {
           </div>
 
           <div className="col-md-9 d-flex flex-column p-0">
+            <div className="border-bottom p-2 d-flex justify-content-end align-items-center gap-2">
+              <label className="form-check-label small text-muted" htmlFor="autoRead">
+                Auto-read
+              </label>
+              <div className="form-check form-switch m-0">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="autoRead"
+                  checked={autoRead}
+                  onChange={toggleAutoRead}
+                />
+              </div>
+            </div>
             <div className="flex-grow-1 overflow-auto p-4">
               {isLoading ? (
                 <div className="text-center">
@@ -164,7 +229,7 @@ export default function Chat() {
                 messages.map((msg, idx) => (
                   <div
                     key={idx}
-                    className={`mb-3 d-flex ${msg.role === 'user' ? 'justify-content-end' : 'justify-content-start'}`}
+                    className={`mb-3 d-flex align-items-center gap-2 ${msg.role === 'user' ? 'justify-content-end' : 'justify-content-start'}`}
                   >
                     <div
                       className={`p-3 rounded-3 ${
@@ -174,6 +239,23 @@ export default function Chat() {
                     >
                       <ClickableMessage content={msg.content} isAssistant={msg.role === 'assistant'} />
                     </div>
+                    {msg.role === 'assistant' && (
+                      <button
+                        className="btn btn-link p-0 text-secondary"
+                        onClick={() => handleTTS(msg.content, idx)}
+                        disabled={ttsLoading && playingIdx === idx}
+                        title={isPlaying && playingIdx === idx ? 'Pause' : 'Play'}
+                        style={{ fontSize: '1.2rem', lineHeight: 1 }}
+                      >
+                        {ttsLoading && playingIdx === idx ? (
+                          <span className="spinner-border spinner-border-sm" />
+                        ) : isPlaying && playingIdx === idx ? (
+                          <>&#10074;&#10074;</>
+                        ) : (
+                          <>&#9658;</>
+                        )}
+                      </button>
+                    )}
                   </div>
                 ))
               )}
@@ -183,6 +265,7 @@ export default function Chat() {
             <div className="border-top p-3">
               <form onSubmit={handleSubmit} className="d-flex gap-2">
                 <input
+                  ref={inputRef}
                   type="text"
                   className="form-control"
                   placeholder="Type your message..."
