@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import ClickableMessage from '../components/ClickableMessage'
 import { useTTS } from '../hooks/useTTS'
+import { useSTT } from '../hooks/useSTT'
 import api from '../services/api'
 import type { ChatMessage, Chat as ChatType } from '../types'
 
@@ -22,6 +23,7 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const { isLoading: ttsLoading, isPlaying, speak, stop } = useTTS()
+  const { isRecording, isTranscribing, startRecording, stopRecording } = useSTT()
 
   const toggleAutoRead = useCallback(() => {
     setAutoRead(prev => {
@@ -163,6 +165,26 @@ export default function Chat() {
     }
   }
 
+  const handleMicClick = async () => {
+    if (isRecording) {
+      try {
+        const text = await stopRecording()
+        if (text.trim()) {
+          setInput(text.trim())
+          inputRef.current?.focus()
+        }
+      } catch (err) {
+        console.error('STT error:', err)
+      }
+    } else {
+      try {
+        await startRecording()
+      } catch (err) {
+        console.error('Failed to start recording:', err)
+      }
+    }
+  }
+
   return (
     <>
       <Navbar />
@@ -264,16 +286,34 @@ export default function Chat() {
 
             <div className="border-top p-3">
               <form onSubmit={handleSubmit} className="d-flex gap-2">
+                <button
+                  type="button"
+                  className={`btn ${isRecording ? 'btn-danger' : 'btn-outline-secondary'}`}
+                  onClick={handleMicClick}
+                  disabled={isSending || isTranscribing}
+                  title={isRecording ? 'Stop recording' : 'Start voice input'}
+                  style={{
+                    fontSize: '1.2rem',
+                    lineHeight: 1,
+                    animation: isRecording ? 'pulse 1s infinite' : 'none',
+                  }}
+                >
+                  {isTranscribing ? (
+                    <span className="spinner-border spinner-border-sm" />
+                  ) : (
+                    <span>&#127908;</span>
+                  )}
+                </button>
                 <input
                   ref={inputRef}
                   type="text"
                   className="form-control"
-                  placeholder="Type your message..."
+                  placeholder={isRecording ? 'Listening...' : 'Type your message...'}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  disabled={isSending}
+                  disabled={isSending || isRecording}
                 />
-                <button type="submit" className="btn btn-primary" disabled={isSending || !input.trim()}>
+                <button type="submit" className="btn btn-primary" disabled={isSending || !input.trim() || isRecording}>
                   {isSending ? 'Sending...' : 'Send'}
                 </button>
               </form>

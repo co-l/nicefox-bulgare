@@ -37,3 +37,6 @@ coverage/
 # Piper TTS
 .piper-voices/
 audio-cache/
+
+# STT temp files
+temp-audio/
