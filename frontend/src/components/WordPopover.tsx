@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react'
-import type { Translation } from '../types'
+import type { Translation, GrammaticalForms } from '../types'
 import api from '../services/api'
+
+interface FlashcardData {
+  target: string
+  native: string
+  originalWord: string
+  partOfSpeech: string
+  forms?: GrammaticalForms
+}
 
 interface WordPopoverProps {
   word: string
   context: string
   position: { x: number; y: number }
   onClose: () => void
-  onAddToFlashcards: (word: string, translation: string) => void
+  onAddToFlashcards: (data: FlashcardData) => void
 }
 
 export default function WordPopover({
@@ -39,8 +47,46 @@ export default function WordPopover({
 
   const handleAddToFlashcards = () => {
     if (translation) {
-      onAddToFlashcards(word, translation.translation)
+      onAddToFlashcards({
+        target: translation.lemma,
+        native: translation.translation,
+        originalWord: translation.word,
+        partOfSpeech: translation.partOfSpeech,
+        forms: translation.grammaticalForms,
+      })
       setAdded(true)
+    }
+  }
+
+  const renderForms = (forms: GrammaticalForms) => {
+    switch (forms.type) {
+      case 'adjective':
+        return (
+          <div className="small text-muted">
+            <span className="me-2">m. {forms.forms.masculine}</span>
+            <span className="me-2">f. {forms.forms.feminine}</span>
+            {forms.forms.neuter && <span className="me-2">n. {forms.forms.neuter}</span>}
+            {forms.forms.plural && <span className="me-2">pl. {forms.forms.plural}</span>}
+          </div>
+        )
+      case 'noun':
+        return (
+          <div className="small text-muted">
+            <span className="me-2">sg. {forms.forms.singular}</span>
+            <span className="me-2">pl. {forms.forms.plural}</span>
+            {forms.forms.numeralPlural && <span>num. {forms.forms.numeralPlural}</span>}
+          </div>
+        )
+      case 'verb':
+        return (
+          <div className="small text-muted">
+            <div>pres. {forms.forms.present}</div>
+            <div>past. {forms.forms.past}</div>
+            <div>fut. {forms.forms.future}</div>
+          </div>
+        )
+      default:
+        return null
     }
   }
 
@@ -74,11 +120,21 @@ export default function WordPopover({
             <p className="text-danger mb-0 small">{error}</p>
           ) : translation ? (
             <>
-              <div className="d-flex justify-content-between align-items-start mb-2">
-                <h6 className="mb-0">{translation.word}</h6>
+              <div className="d-flex justify-content-between align-items-start mb-1">
+                <div>
+                  <h6 className="mb-0">{translation.lemma}</h6>
+                  {translation.word !== translation.lemma && (
+                    <small className="text-muted">from: {translation.word}</small>
+                  )}
+                </div>
                 <span className="badge bg-secondary">{translation.partOfSpeech}</span>
               </div>
-              <p className="mb-2 fs-5">{translation.translation}</p>
+              <p className="mb-1 fs-5">{translation.translation}</p>
+              {translation.grammaticalForms && translation.grammaticalForms.type !== 'other' && (
+                <div className="mb-2 p-2 bg-light rounded">
+                  {renderForms(translation.grammaticalForms)}
+                </div>
+              )}
               {translation.grammarNote && (
                 <p className="text-muted small mb-2">{translation.grammarNote}</p>
               )}

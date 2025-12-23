@@ -2,7 +2,7 @@ import { useState, useEffect, FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import api from '../services/api'
-import type { Flashcard } from '../types'
+import type { Flashcard, GrammaticalForms } from '../types'
 
 export default function Flashcards() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
@@ -55,6 +55,19 @@ export default function Flashcards() {
       await fetchData()
     } catch (err) {
       setError('Failed to delete flashcard')
+    }
+  }
+
+  const formatForms = (forms: GrammaticalForms): string => {
+    switch (forms.type) {
+      case 'adjective':
+        return `m. ${forms.forms.masculine} / f. ${forms.forms.feminine}${forms.forms.neuter ? ` / n. ${forms.forms.neuter}` : ''}${forms.forms.plural ? ` / pl. ${forms.forms.plural}` : ''}`
+      case 'noun':
+        return `sg. ${forms.forms.singular} / pl. ${forms.forms.plural}${forms.forms.numeralPlural ? ` / num. ${forms.forms.numeralPlural}` : ''}`
+      case 'verb':
+        return `pres. ${forms.forms.present} / past. ${forms.forms.past} / fut. ${forms.forms.future}`
+      default:
+        return ''
     }
   }
 
@@ -164,22 +177,34 @@ export default function Flashcards() {
               </li>
             ) : (
               flashcards.map((card) => (
-                <li key={card.id} className="list-group-item d-flex justify-content-between align-items-center">
-                  <div>
-                    <strong>{card.native}</strong>
-                    <span className="mx-2">→</span>
-                    <span>{card.target}</span>
-                  </div>
-                  <div>
-                    <span className={`badge me-2 ${card.status === 'new' ? 'bg-info' : card.status === 'learning' ? 'bg-warning' : 'bg-success'}`}>
-                      {card.status}
-                    </span>
-                    <button
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => handleDeleteCard(card.id)}
-                    >
-                      Delete
-                    </button>
+                <li key={card.id} className="list-group-item">
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                      <div className="d-flex align-items-center gap-2">
+                        <strong>{card.target}</strong>
+                        <span className="mx-1">→</span>
+                        <span>{card.native}</span>
+                        {card.partOfSpeech && (
+                          <span className="badge bg-secondary">{card.partOfSpeech}</span>
+                        )}
+                      </div>
+                      {card.forms && card.forms.type !== 'other' && (
+                        <small className="text-muted d-block mt-1">
+                          {formatForms(card.forms)}
+                        </small>
+                      )}
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                      <span className={`badge ${card.status === 'new' ? 'bg-info' : card.status === 'learning' ? 'bg-warning' : 'bg-success'}`}>
+                        {card.status}
+                      </span>
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => handleDeleteCard(card.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </li>
               ))

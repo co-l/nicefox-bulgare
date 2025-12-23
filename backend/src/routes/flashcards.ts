@@ -14,6 +14,9 @@ interface FlashcardRecord {
       id: string
       native: string
       target: string
+      original_word?: string
+      part_of_speech?: string
+      forms?: string // JSON stringified
     }
   }
   rel: {
@@ -42,6 +45,9 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       id: r.f.properties.id,
       native: r.f.properties.native,
       target: r.f.properties.target,
+      originalWord: r.f.properties.original_word,
+      partOfSpeech: r.f.properties.part_of_speech,
+      forms: r.f.properties.forms ? JSON.parse(r.f.properties.forms) : undefined,
       nextDisplay: new Date(r.rel.properties.next_display || Date.now()),
       intervalIndex: r.rel.properties.interval_index || 0,
       status: r.rel.properties.status || 'new',
@@ -85,6 +91,9 @@ router.get('/session', async (req: AuthRequest, res: Response) => {
       id: r.f.properties.id,
       native: r.f.properties.native,
       target: r.f.properties.target,
+      originalWord: r.f.properties.original_word,
+      partOfSpeech: r.f.properties.part_of_speech,
+      forms: r.f.properties.forms ? JSON.parse(r.f.properties.forms) : undefined,
       nextDisplay: new Date(r.rel.properties.next_display || Date.now()),
       intervalIndex: r.rel.properties.interval_index || 0,
       status: r.rel.properties.status || 'new',
@@ -99,7 +108,7 @@ router.get('/session', async (req: AuthRequest, res: Response) => {
 
 router.post('/', async (req: AuthRequest, res: Response) => {
   try {
-    const { native, target, language } = req.body
+    const { native, target, originalWord, partOfSpeech, forms, language } = req.body
 
     if (!native || !target) {
       res.status(400).json({ error: 'Native and target words are required' })
@@ -135,6 +144,9 @@ router.post('/', async (req: AuthRequest, res: Response) => {
          id: $flashcardId,
          native: $native,
          target: $target,
+         original_word: $originalWord,
+         part_of_speech: $partOfSpeech,
+         forms: $forms,
          created_at: timestamp()
        })`,
       {
@@ -143,6 +155,9 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         flashcardId,
         native,
         target,
+        originalWord: originalWord || null,
+        partOfSpeech: partOfSpeech || null,
+        forms: forms ? JSON.stringify(forms) : null,
         nextDisplay: initial.nextDisplay.getTime(),
         intervalIndex: initial.newIntervalIndex,
         status: initial.status,
@@ -154,6 +169,9 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         id: flashcardId,
         native,
         target,
+        originalWord,
+        partOfSpeech,
+        forms,
         nextDisplay: initial.nextDisplay,
         intervalIndex: initial.newIntervalIndex,
         status: initial.status,

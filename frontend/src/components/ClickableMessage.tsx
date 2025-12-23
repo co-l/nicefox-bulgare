@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import WordPopover from './WordPopover'
 import api from '../services/api'
+import type { GrammaticalForms } from '../types'
 
 interface ClickableMessageProps {
   content: string
@@ -11,6 +12,14 @@ interface PopoverState {
   word: string
   context: string
   position: { x: number; y: number }
+}
+
+interface FlashcardData {
+  target: string
+  native: string
+  originalWord: string
+  partOfSpeech: string
+  forms?: GrammaticalForms
 }
 
 export default function ClickableMessage({ content, isAssistant }: ClickableMessageProps) {
@@ -34,11 +43,14 @@ export default function ClickableMessage({ content, isAssistant }: ClickableMess
     [content, isAssistant]
   )
 
-  const handleAddToFlashcards = async (word: string, translation: string) => {
+  const handleAddToFlashcards = async (data: FlashcardData) => {
     try {
       await api.post('/flashcards', {
-        target: word,
-        native: translation,
+        target: data.target,
+        native: data.native,
+        originalWord: data.originalWord,
+        partOfSpeech: data.partOfSpeech,
+        forms: data.forms,
       })
     } catch (err) {
       console.error('Failed to add flashcard:', err)

@@ -33,11 +33,40 @@ interface UserLanguageRecord {
   }
 }
 
+interface AdjectiveForms {
+  masculine: string
+  feminine: string
+  neuter?: string
+  plural?: string
+}
+
+interface NounForms {
+  singular: string
+  plural: string
+  numeralPlural?: string
+  definiteSingular?: string
+  definitePlural?: string
+}
+
+interface VerbForms {
+  present: string
+  past: string
+  future: string
+}
+
+type GrammaticalForms =
+  | { type: 'adjective'; forms: AdjectiveForms }
+  | { type: 'noun'; forms: NounForms }
+  | { type: 'verb'; forms: VerbForms }
+  | { type: 'other'; forms: null }
+
 interface TranslationResponse {
   word: string
+  lemma: string
   translation: string
   partOfSpeech: string
   grammarNote?: string
+  grammaticalForms?: GrammaticalForms
 }
 
 router.post('/', async (req: AuthRequest, res: Response) => {
@@ -66,25 +95,42 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
     const mistral = getMistral()
 
-    const prompt = context
-      ? `Translate the word "${word}" from ${targetLanguage} to ${nativeLanguage}. The word appears in this context: "${context}"
+    const contextInfo = context ? `The word appears in this context: "${context}"` : ''
 
-Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
-{"word": "${word}", "translation": "the translation", "partOfSpeech": "noun/verb/adjective/etc", "grammarNote": "brief grammar note if relevant"}`
-      : `Translate the word "${word}" from ${targetLanguage} to ${nativeLanguage}.
+    const prompt = `Analyze and translate the word "${word}" from ${targetLanguage} to ${nativeLanguage}. ${contextInfo}
 
-Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
-{"word": "${word}", "translation": "the translation", "partOfSpeech": "noun/verb/adjective/etc", "grammarNote": "brief grammar note if relevant"}`
+Provide a JSON response with:
+1. "word": the exact word "${word}"
+2. "lemma": the dictionary/base form (infinitive for verbs, nominative singular masculine for adjectives, nominative singular for nouns)
+3. "translation": translation of the lemma to ${nativeLanguage}
+4. "partOfSpeech": noun/verb/adjective/adverb/pronoun/preposition/conjunction/other
+5. "grammarNote": brief grammar note if relevant (max 10 words)
+6. "grammaticalForms": based on part of speech, include one of:
+
+For ADJECTIVES:
+{"type": "adjective", "forms": {"masculine": "...", "feminine": "...", "neuter": "..." (if applicable in ${targetLanguage}), "plural": "..."}}
+
+For NOUNS:
+{"type": "noun", "forms": {"singular": "...", "plural": "...", "numeralPlural": "..." (for Bulgarian: form used with numbers 2-6, e.g. "два стола")}}
+
+For VERBS:
+{"type": "verb", "forms": {"present": "1st person singular present", "past": "1st person singular past", "future": "1st person singular future"}}
+
+For other parts of speech:
+{"type": "other", "forms": null}
+
+Respond with valid JSON only, no markdown.`
 
     const response = await mistral.chat.complete({
       model: 'mistral-small-latest',
       messages: [
         {
           role: 'system',
-          content: `You are a language translation assistant. Always respond with valid JSON only, no markdown formatting or extra text. Keep grammar notes concise (under 10 words).`,
+          content: `You are a ${targetLanguage} language expert and translator. Always respond with valid JSON only, no markdown formatting or extra text. Be accurate with grammatical forms for ${targetLanguage}.`,
         },
         { role: 'user', content: prompt },
       ],
+      responseFormat: { type: 'json_object' },
     })
 
     const content = response.choices?.[0]?.message?.content
@@ -100,10 +146,15 @@ Respond ONLY with a JSON object in this exact format (no markdown, no extra text
       // Remove markdown code blocks if present
       const cleaned = textContent.replace(/```json\n?|\n?```/g, '').trim()
       parsed = JSON.parse(cleaned)
+      // Ensure lemma exists, fallback to word
+      if (!parsed.lemma) {
+        parsed.lemma = parsed.word || word
+      }
     } catch {
       // Fallback if JSON parsing fails
       parsed = {
         word,
+        lemma: word,
         translation: textContent,
         partOfSpeech: 'unknown',
       }

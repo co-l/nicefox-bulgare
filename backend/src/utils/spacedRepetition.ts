@@ -67,9 +67,9 @@ function determineStatus(intervalIndex: number): 'new' | 'learning' | 'review' {
 }
 
 export function getInitialReview(): ReviewResult {
-  // New cards start at 15 minutes
+  // New cards are immediately available for review
   return {
-    nextDisplay: calculateNextDisplayTime(INTERVALS[0]),
+    nextDisplay: new Date(),
     newIntervalIndex: 0,
     status: 'new',
   }

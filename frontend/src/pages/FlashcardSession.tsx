@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import api from '../services/api'
-import type { Flashcard } from '../types'
+import type { Flashcard, GrammaticalForms } from '../types'
 
 export default function FlashcardSession() {
   const [cards, setCards] = useState<Flashcard[]>([])
@@ -87,6 +87,38 @@ export default function FlashcardSession() {
 
   const currentCard = cards[currentIndex]
 
+  const renderForms = (forms: GrammaticalForms) => {
+    switch (forms.type) {
+      case 'adjective':
+        return (
+          <div className="d-flex justify-content-center gap-3 flex-wrap">
+            <span>m. {forms.forms.masculine}</span>
+            <span>f. {forms.forms.feminine}</span>
+            {forms.forms.neuter && <span>n. {forms.forms.neuter}</span>}
+            {forms.forms.plural && <span>pl. {forms.forms.plural}</span>}
+          </div>
+        )
+      case 'noun':
+        return (
+          <div className="d-flex justify-content-center gap-3 flex-wrap">
+            <span>sg. {forms.forms.singular}</span>
+            <span>pl. {forms.forms.plural}</span>
+            {forms.forms.numeralPlural && <span>num. {forms.forms.numeralPlural}</span>}
+          </div>
+        )
+      case 'verb':
+        return (
+          <div className="text-center">
+            <div>present: {forms.forms.present}</div>
+            <div>past: {forms.forms.past}</div>
+            <div>future: {forms.forms.future}</div>
+          </div>
+        )
+      default:
+        return null
+    }
+  }
+
   return (
     <>
       <Navbar />
@@ -114,6 +146,14 @@ export default function FlashcardSession() {
                 <h1 className="display-4">
                   {isFlipped ? currentCard.target : currentCard.native}
                 </h1>
+                {isFlipped && currentCard.partOfSpeech && (
+                  <span className="badge bg-secondary mx-auto mt-2">{currentCard.partOfSpeech}</span>
+                )}
+                {isFlipped && currentCard.forms && currentCard.forms.type !== 'other' && (
+                  <div className="mt-3 text-muted">
+                    {renderForms(currentCard.forms)}
+                  </div>
+                )}
                 {!isFlipped && (
                   <p className="text-muted mt-3">Click to reveal answer</p>
                 )}

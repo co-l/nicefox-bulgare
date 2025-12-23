@@ -10,10 +10,40 @@ export interface Language {
   proficiency: 'beginner' | 'intermediate' | 'advanced' | 'fluent'
 }
 
+export interface AdjectiveForms {
+  masculine: string
+  feminine: string
+  neuter?: string
+  plural?: string
+}
+
+export interface NounForms {
+  singular: string
+  plural: string
+  numeralPlural?: string
+  definiteSingular?: string
+  definitePlural?: string
+}
+
+export interface VerbForms {
+  present: string
+  past: string
+  future: string
+}
+
+export type GrammaticalForms =
+  | { type: 'adjective'; forms: AdjectiveForms }
+  | { type: 'noun'; forms: NounForms }
+  | { type: 'verb'; forms: VerbForms }
+  | { type: 'other'; forms: null }
+
 export interface Flashcard {
   id: string
   native: string
   target: string
+  originalWord?: string
+  partOfSpeech?: string
+  forms?: GrammaticalForms
   nextDisplay: string
   intervalIndex: number
   status: 'new' | 'learning' | 'review'
@@ -53,7 +83,9 @@ export interface AuthTokens {
 
 export interface Translation {
   word: string
+  lemma: string
   translation: string
   partOfSpeech: string
   grammarNote?: string
+  grammaticalForms?: GrammaticalForms
 }
