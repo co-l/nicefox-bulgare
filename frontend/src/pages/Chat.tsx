@@ -5,7 +5,7 @@ import ClickableMessage from '../components/ClickableMessage'
 import { useTTS } from '../hooks/useTTS'
 import { useSTT } from '../hooks/useSTT'
 import api from '../services/api'
-import type { ChatMessage, Chat as ChatType } from '../types'
+import type { ChatMessage, Chat as ChatType, GrammarAnalysis } from '../types'
 
 export default function Chat() {
   const { chatId } = useParams()
@@ -24,6 +24,7 @@ export default function Chat() {
   const inputRef = useRef<HTMLInputElement>(null)
   const { isLoading: ttsLoading, isPlaying, speak, stop } = useTTS()
   const { isRecording, isTranscribing, startRecording, stopRecording } = useSTT()
+  const [grammarModal, setGrammarModal] = useState<{ analysis: GrammarAnalysis; message: string } | null>(null)
 
   const toggleAutoRead = useCallback(() => {
     setAutoRead(prev => {
@@ -94,13 +95,20 @@ export default function Chat() {
         message: userMessage.content,
       })
 
+      // Update user message with grammar analysis
+      const grammarAnalysis = response.data.grammar as GrammarAnalysis | undefined
+      const updatedUserMessage: ChatMessage = {
+        ...userMessage,
+        grammar: grammarAnalysis,
+      }
+
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: response.data.response,
         timestamp: new Date().toISOString(),
       }
 
-      setMessages((prev) => [...prev, assistantMessage])
+      setMessages((prev) => [...prev.slice(0, -1), updatedUserMessage, assistantMessage])
 
       // Auto-read the new message (after state update)
       if (autoRead) {
@@ -253,6 +261,22 @@ export default function Chat() {
                     key={idx}
                     className={`mb-3 d-flex align-items-center gap-2 ${msg.role === 'user' ? 'justify-content-end' : 'justify-content-start'}`}
                   >
+                    {msg.role === 'user' && msg.grammar && (
+                      <button
+                        className="btn btn-link p-0"
+                        onClick={() => setGrammarModal({ analysis: msg.grammar!, message: msg.content })}
+                        title="View grammar feedback"
+                        style={{ fontSize: '1.2rem', lineHeight: 1 }}
+                      >
+                        {msg.grammar.score === 'perfect' ? (
+                          <span style={{ color: '#4caf50' }}>&#10004;</span>
+                        ) : msg.grammar.score === 'minor' ? (
+                          <span style={{ color: '#ff9800' }}>&#9888;</span>
+                        ) : (
+                          <span style={{ color: '#f44336' }}>&#10008;</span>
+                        )}
+                      </button>
+                    )}
                     <div
                       className={`p-3 rounded-3 ${
                         msg.role === 'user' ? 'bg-primary text-white' : 'bg-light'
@@ -321,6 +345,80 @@ export default function Chat() {
           </div>
         </div>
       </div>
+
+      {/* Grammar Feedback Modal */}
+      {grammarModal && (
+        <div
+          className="modal d-block"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setGrammarModal(null)}
+        >
+          <div className="modal-dialog modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title d-flex align-items-center gap-2">
+                  {grammarModal.analysis.score === 'perfect' ? (
+                    <span style={{ color: '#4caf50' }}>&#10004; Perfect!</span>
+                  ) : grammarModal.analysis.score === 'minor' ? (
+                    <span style={{ color: '#ff9800' }}>&#9888; Minor Issues</span>
+                  ) : (
+                    <span style={{ color: '#f44336' }}>&#10008; Needs Work</span>
+                  )}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setGrammarModal(null)}
+                />
+              </div>
+              <div className="modal-body">
+                <div className="mb-3 p-2 bg-light rounded">
+                  <small className="text-muted">Your message:</small>
+                  <p className="mb-0">{grammarModal.message}</p>
+                </div>
+
+                {grammarModal.analysis.explanation && (
+                  <p>{grammarModal.analysis.explanation}</p>
+                )}
+
+                {grammarModal.analysis.corrections && grammarModal.analysis.corrections.length > 0 && (
+                  <div className="mt-3">
+                    <h6>Corrections:</h6>
+                    {grammarModal.analysis.corrections.map((correction, idx) => (
+                      <div key={idx} className="mb-2 p-2 border rounded">
+                        <div className="d-flex gap-2 align-items-center mb-1">
+                          <span className="text-decoration-line-through text-danger">
+                            {correction.original}
+                          </span>
+                          <span>→</span>
+                          <span className="text-success fw-bold">{correction.corrected}</span>
+                        </div>
+                        <small className="text-muted">{correction.reason}</small>
+                      </div>
+                    ))}
+
+                    {grammarModal.analysis.correctedSentence && (
+                      <div className="mt-3 p-2 bg-success bg-opacity-10 border border-success rounded">
+                        <small className="text-success fw-bold">Corrected sentence:</small>
+                        <p className="mb-0 mt-1">{grammarModal.analysis.correctedSentence}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setGrammarModal(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

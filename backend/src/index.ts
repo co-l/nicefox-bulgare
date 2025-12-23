@@ -11,7 +11,7 @@ import ttsRoutes from './routes/tts.js'
 import sttRoutes from './routes/stt.js'
 
 const app = express()
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT || 3188
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',

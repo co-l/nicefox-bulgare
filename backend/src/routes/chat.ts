@@ -2,7 +2,7 @@ import { Router, Response } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import { authMiddleware, AuthRequest } from '../middleware/auth.js'
 import { runQuery, runSingleQuery } from '../db.js'
-import { generateChatResponse } from '../services/mistral.js'
+import { generateChatResponse, analyzeGrammar, GrammarAnalysis } from '../services/mistral.js'
 
 const router = Router()
 
@@ -38,6 +38,7 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
+  grammar?: GrammarAnalysis
 }
 
 router.get('/history', async (req: AuthRequest, res: Response) => {
@@ -220,7 +221,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       console.log('No chatId provided')
     }
 
-    // Add user message
+    // Add user message (grammar will be added after analysis)
     const userMessage: Message = {
       role: 'user',
       content: message,
@@ -228,16 +229,23 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     }
     messages.push(userMessage)
 
-    // Generate AI response
+    // Generate AI response and analyze grammar in parallel
     const messagesToSend = messages.map((m) => ({ role: m.role, content: m.content }))
     console.log('Sending to AI:', messagesToSend.length, 'messages')
-    const aiResponse = await generateChatResponse(
-      messagesToSend,
-      targetLanguage,
-      proficiency,
-      nativeLanguage,
-      userName
-    )
+
+    const [aiResponse, grammarAnalysis] = await Promise.all([
+      generateChatResponse(
+        messagesToSend,
+        targetLanguage,
+        proficiency,
+        nativeLanguage,
+        userName
+      ),
+      analyzeGrammar(message, targetLanguage, nativeLanguage),
+    ])
+
+    // Add grammar analysis to user message
+    userMessage.grammar = grammarAnalysis
 
     // Add AI response
     const assistantMessage: Message = {
@@ -281,6 +289,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     res.json({
       chatId: currentChatId,
       response: aiResponse,
+      grammar: grammarAnalysis,
     })
   } catch (error) {
     console.error('Chat error:', error)

@@ -12,10 +12,10 @@ Become Fluent is a language learning app combining AI-powered conversations (Mis
 # Development (runs both frontend and backend concurrently)
 npm run dev
 
-# Run only backend (Express on port 3001)
+# Run only backend (Express on port 3188)
 npm run dev:backend
 
-# Run only frontend (Vite on port 5173)
+# Run only frontend (Vite on port 5180)
 npm run dev:frontend
 
 # Build all

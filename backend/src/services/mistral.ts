@@ -59,6 +59,74 @@ CRITICAL RULES:
 - When starting a NEW conversation, greet and ask one simple question`
 }
 
+export interface GrammarAnalysis {
+  score: 'perfect' | 'minor' | 'major'
+  explanation: string
+  correctedSentence?: string
+  corrections?: Array<{
+    original: string
+    corrected: string
+    reason: string
+  }>
+}
+
+export async function analyzeGrammar(
+  userMessage: string,
+  targetLanguage: string,
+  nativeLanguage: string
+): Promise<GrammarAnalysis> {
+  const mistral = getClient()
+
+  const systemPrompt = `You are a ${targetLanguage} grammar expert. Analyze the user's message for grammar, spelling, and natural expression.
+
+Respond in JSON format with this structure:
+{
+  "score": "perfect" | "minor" | "major",
+  "explanation": "Brief explanation in ${nativeLanguage}",
+  "correctedSentence": "The full corrected sentence in ${targetLanguage} (only if there are errors)",
+  "corrections": [
+    {
+      "original": "the incorrect part",
+      "corrected": "the correct version",
+      "reason": "why in ${nativeLanguage}"
+    }
+  ]
+}
+
+Score guidelines:
+- "perfect": No errors, sounds natural (omit correctedSentence and corrections)
+- "minor": Small errors (typos, minor grammar) but meaning is clear
+- "major": Significant errors affecting comprehension or very unnatural
+
+Keep explanations concise and helpful. Always respond in valid JSON only.`
+
+  const response = await mistral.chat.complete({
+    model: 'mistral-small-latest',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage },
+    ],
+    responseFormat: { type: 'json_object' },
+  })
+
+  const content = response.choices?.[0]?.message?.content
+  if (!content) {
+    return { score: 'perfect', explanation: '' }
+  }
+
+  try {
+    const parsed = JSON.parse(typeof content === 'string' ? content : JSON.stringify(content))
+    return {
+      score: parsed.score || 'perfect',
+      explanation: parsed.explanation || '',
+      correctedSentence: parsed.correctedSentence,
+      corrections: parsed.corrections || [],
+    }
+  } catch {
+    return { score: 'perfect', explanation: '' }
+  }
+}
+
 export async function generateChatResponse(
   messages: Message[],
   targetLanguage: string,
