@@ -167,4 +167,83 @@ Respond with valid JSON only, no markdown.`
   }
 })
 
+// Reverse translation: native language -> target language with forms
+router.post('/reverse', async (req: AuthRequest, res: Response) => {
+  try {
+    const { word, nativeLanguage, targetLanguage } = req.body
+
+    if (!word || !nativeLanguage || !targetLanguage) {
+      res.status(400).json({ error: 'Word, nativeLanguage, and targetLanguage are required' })
+      return
+    }
+
+    const mistral = getMistral()
+
+    const prompt = `Translate the word "${word}" from ${nativeLanguage} to ${targetLanguage}.
+
+Provide a JSON response with:
+1. "word": the ${targetLanguage} translation (base/dictionary form)
+2. "lemma": same as "word" (the dictionary/base form in ${targetLanguage})
+3. "translation": the base/dictionary form of "${word}" in ${nativeLanguage} (e.g., if input is "coupables", return "coupable"; if input is "running", return "run" for verbs or keep as-is for gerunds)
+4. "partOfSpeech": noun/verb/adjective/adverb/pronoun/preposition/conjunction/other
+5. "grammarNote": brief grammar note if relevant (max 10 words)
+6. "grammaticalForms": based on part of speech, include one of:
+
+For ADJECTIVES:
+{"type": "adjective", "forms": {"masculine": "...", "feminine": "...", "neuter": "..." (if applicable in ${targetLanguage}), "plural": "..."}}
+
+For NOUNS:
+{"type": "noun", "forms": {"singular": "...", "plural": "...", "numeralPlural": "..." (for Bulgarian: form used with numbers 2-6, e.g. "два стола")}}
+
+For VERBS:
+{"type": "verb", "forms": {"present": "1st person singular present", "past": "1st person singular past", "future": "1st person singular future"}}
+
+For other parts of speech:
+{"type": "other", "forms": null}
+
+Respond with valid JSON only, no markdown.`
+
+    const response = await mistral.chat.complete({
+      model: 'mistral-small-latest',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a ${targetLanguage} language expert and translator. Always respond with valid JSON only, no markdown formatting or extra text. Be accurate with grammatical forms for ${targetLanguage}.`,
+        },
+        { role: 'user', content: prompt },
+      ],
+      responseFormat: { type: 'json_object' },
+    })
+
+    const content = response.choices?.[0]?.message?.content
+    if (!content) {
+      throw new Error('No response from Mistral')
+    }
+
+    const textContent = typeof content === 'string' ? content : JSON.stringify(content)
+
+    // Parse JSON response
+    let parsed: TranslationResponse
+    try {
+      const cleaned = textContent.replace(/```json\n?|\n?```/g, '').trim()
+      parsed = JSON.parse(cleaned)
+      if (!parsed.lemma) {
+        parsed.lemma = parsed.word || word
+      }
+    } catch {
+      parsed = {
+        word,
+        lemma: word,
+        translation: word,
+        partOfSpeech: 'unknown',
+      }
+    }
+
+    res.json(parsed)
+  } catch (error) {
+    console.error('Reverse translation error:', error)
+    res.status(500).json({ error: 'Failed to translate' })
+  }
+})
+
 export default router

@@ -4,6 +4,30 @@ import Navbar from '../components/Navbar'
 import api from '../services/api'
 import type { Flashcard, GrammaticalForms } from '../types'
 
+// Intervals in minutes - must match backend spacedRepetition.ts
+const INTERVALS = [15, 1440, 4320, 10080, 21600, 43200]
+
+// Calculate interval text for display
+function getIntervalText(intervalMinutes: number): string {
+  if (intervalMinutes < 60) return `${intervalMinutes} min`
+  if (intervalMinutes < 1440) return `${Math.round(intervalMinutes / 60)} hours`
+  const days = Math.round(intervalMinutes / 1440)
+  return days === 1 ? '1 day' : `${days} days`
+}
+
+// Get what interval "easy" would give
+function getEasyInterval(currentIntervalIndex: number): string {
+  const nextIndex = Math.min(currentIntervalIndex + 1, INTERVALS.length - 1)
+  return getIntervalText(INTERVALS[nextIndex])
+}
+
+// Get what interval "hard" would give (half of next interval)
+function getHardInterval(currentIntervalIndex: number): string {
+  const nextIndex = Math.min(currentIntervalIndex + 1, INTERVALS.length - 1)
+  const halfInterval = Math.floor(INTERVALS[nextIndex] / 2)
+  return getIntervalText(halfInterval)
+}
+
 export default function FlashcardSession() {
   const [cards, setCards] = useState<Flashcard[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -34,6 +58,21 @@ export default function FlashcardSession() {
 
   const handleReview = async (action: 'easy' | 'hard' | 'again') => {
     const card = cards[currentIndex]
+
+    if (action === 'again') {
+      // Move card to end of queue locally, don't call API
+      const newCards = [...cards]
+      const [removedCard] = newCards.splice(currentIndex, 1)
+      newCards.push(removedCard)
+      setCards(newCards)
+      setIsFlipped(false)
+      // Don't increment currentIndex since we removed the current card
+      // If we're at the end after removal, stay at same index (which now has the next card)
+      if (currentIndex >= newCards.length) {
+        setCurrentIndex(newCards.length - 1)
+      }
+      return
+    }
 
     try {
       await api.post(`/flashcards/${card.id}/review`, { action })
@@ -71,13 +110,15 @@ export default function FlashcardSession() {
           <div className="text-center py-5">
             <h2>Session Complete!</h2>
             <p className="text-muted mb-4">
-              You reviewed {reviewed} card{reviewed !== 1 ? 's' : ''}.
+              {reviewed > 0
+                ? `You reviewed ${reviewed} card${reviewed !== 1 ? 's' : ''}.`
+                : 'No cards due for review right now.'}
             </p>
             <button className="btn btn-primary me-2" onClick={() => navigate('/flashcards')}>
               Back to Flashcards
             </button>
-            <button className="btn btn-outline-primary" onClick={() => window.location.reload()}>
-              Start New Session
+            <button className="btn btn-outline-primary" onClick={() => navigate('/chat')}>
+              Start a Chat
             </button>
           </div>
         </div>
@@ -163,31 +204,28 @@ export default function FlashcardSession() {
             {isFlipped && (
               <div className="d-flex justify-content-center gap-3 mt-4">
                 <button
-                  className="btn btn-danger btn-lg px-4"
+                  className="btn btn-danger btn-lg px-4 d-flex flex-column align-items-center"
                   onClick={() => handleReview('again')}
                 >
-                  Again
+                  <span>Again</span>
+                  <small style={{ fontSize: '0.65rem', opacity: 0.8 }}>Show again</small>
                 </button>
                 <button
-                  className="btn btn-warning btn-lg px-4"
+                  className="btn btn-warning btn-lg px-4 d-flex flex-column align-items-center"
                   onClick={() => handleReview('hard')}
                 >
-                  Hard
+                  <span>Hard</span>
+                  <small style={{ fontSize: '0.65rem', opacity: 0.8 }}>{getHardInterval(currentCard.intervalIndex)}</small>
                 </button>
                 <button
-                  className="btn btn-success btn-lg px-4"
+                  className="btn btn-success btn-lg px-4 d-flex flex-column align-items-center"
                   onClick={() => handleReview('easy')}
                 >
-                  Easy
+                  <span>Easy</span>
+                  <small style={{ fontSize: '0.65rem', opacity: 0.8 }}>{getEasyInterval(currentCard.intervalIndex)}</small>
                 </button>
               </div>
             )}
-
-            <div className="text-center mt-4">
-              <small className="text-muted">
-                Again: Reset to 1 day | Hard: Half interval | Easy: Next interval
-              </small>
-            </div>
           </div>
         </div>
       </div>
