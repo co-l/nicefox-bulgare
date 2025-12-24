@@ -173,34 +173,28 @@ export default function Flashcards() {
 
         {error && <div className="alert alert-danger">{error}</div>}
 
-        <div className="row mb-4">
+        <div className="row mb-4 g-3">
           <div className="col-md-4">
-            <div className="card text-center">
-              <div className="card-body">
-                <h3 className="card-title">{flashcards.length}</h3>
-                <p className="card-text text-muted">Total Cards</p>
-              </div>
+            <div className="card stat-card h-100">
+              <h3>{flashcards.length}</h3>
+              <p className="text-muted mb-0">Total Cards</p>
             </div>
           </div>
           <div className="col-md-4">
-            <div className="card text-center">
-              <div className="card-body">
-                <h3 className="card-title">{dueCount}</h3>
-                <p className="card-text text-muted">Due Today</p>
-              </div>
+            <div className="card stat-card h-100">
+              <h3>{dueCount}</h3>
+              <p className="text-muted mb-0">Due Today</p>
             </div>
           </div>
           <div className="col-md-4">
-            <div className="card text-center bg-primary text-white">
-              <div className="card-body">
-                {dueCount > 0 ? (
-                  <Link to="/flashcards/session" className="btn btn-light">
-                    Start Review Session
-                  </Link>
-                ) : (
-                  <p className="mb-0">No cards due!</p>
-                )}
-              </div>
+            <div className="card stat-card h-100 d-flex justify-content-center">
+              {dueCount > 0 ? (
+                <Link to="/flashcards/session" className="btn btn-primary btn-lg">
+                  Start Review
+                </Link>
+              ) : (
+                <p className="text-muted mb-0">All caught up!</p>
+              )}
             </div>
           </div>
         </div>

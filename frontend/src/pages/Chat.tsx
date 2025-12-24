@@ -259,39 +259,39 @@ export default function Chat() {
                 messages.map((msg, idx) => (
                   <div
                     key={idx}
-                    className={`mb-3 d-flex align-items-center gap-2 ${msg.role === 'user' ? 'justify-content-end' : 'justify-content-start'}`}
+                    className={`mb-4 d-flex align-items-start gap-2 ${msg.role === 'user' ? 'justify-content-end' : 'justify-content-start'}`}
                   >
                     {msg.role === 'user' && msg.grammar && (
                       <button
-                        className="btn btn-link p-0"
+                        className="btn btn-link p-0 grammar-indicator align-self-center"
                         onClick={() => setGrammarModal({ analysis: msg.grammar!, message: msg.content })}
                         title="View grammar feedback"
-                        style={{ fontSize: '1.2rem', lineHeight: 1 }}
                       >
                         {msg.grammar.score === 'perfect' ? (
-                          <span style={{ color: '#4caf50' }}>&#10004;</span>
+                          <span style={{ color: 'var(--accent-success)' }}>&#10004;</span>
                         ) : msg.grammar.score === 'minor' ? (
-                          <span style={{ color: '#ff9800' }}>&#9888;</span>
+                          <span style={{ color: 'var(--accent-warning)' }}>&#9888;</span>
                         ) : (
-                          <span style={{ color: '#f44336' }}>&#10008;</span>
+                          <span style={{ color: 'var(--accent-danger)' }}>&#10008;</span>
                         )}
                       </button>
                     )}
                     <div
-                      className={`p-3 rounded-3 ${
-                        msg.role === 'user' ? 'bg-primary text-white' : 'bg-light'
+                      className={`chat-bubble ${
+                        msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'
                       }`}
-                      style={{ maxWidth: '70%' }}
                     >
                       <ClickableMessage content={msg.content} isAssistant={msg.role === 'assistant'} />
                     </div>
                     {msg.role === 'assistant' && (
                       <button
-                        className="btn btn-link p-0 text-secondary"
+                        className="btn btn-link p-0 text-secondary align-self-center"
                         onClick={() => handleTTS(msg.content, idx)}
                         disabled={ttsLoading && playingIdx === idx}
                         title={isPlaying && playingIdx === idx ? 'Pause' : 'Play'}
-                        style={{ fontSize: '1.2rem', lineHeight: 1 }}
+                        style={{ fontSize: '1.2rem', lineHeight: 1, opacity: 0.7, transition: 'opacity 0.15s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                        onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
                       >
                         {ttsLoading && playingIdx === idx ? (
                           <span className="spinner-border spinner-border-sm" />

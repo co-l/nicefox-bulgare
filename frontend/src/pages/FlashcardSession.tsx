@@ -107,19 +107,26 @@ export default function FlashcardSession() {
       <>
         <Navbar />
         <div className="container mt-4">
-          <div className="text-center py-5">
-            <h2>Session Complete!</h2>
-            <p className="text-muted mb-4">
+          <div className="text-center py-5 session-complete">
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>
+              {reviewed > 0 ? '🎉' : '✨'}
+            </div>
+            <h2 style={{ marginBottom: '0.5rem' }}>
+              {reviewed > 0 ? 'Session Complete!' : 'All Caught Up!'}
+            </h2>
+            <p className="text-muted mb-4" style={{ fontSize: '1.1rem' }}>
               {reviewed > 0
-                ? `You reviewed ${reviewed} card${reviewed !== 1 ? 's' : ''}.`
+                ? `You reviewed ${reviewed} card${reviewed !== 1 ? 's' : ''}. Great work!`
                 : 'No cards due for review right now.'}
             </p>
-            <button className="btn btn-primary me-2" onClick={() => navigate('/flashcards')}>
-              Back to Flashcards
-            </button>
-            <button className="btn btn-outline-primary" onClick={() => navigate('/chat')}>
-              Start a Chat
-            </button>
+            <div className="d-flex justify-content-center gap-3">
+              <button className="btn btn-primary btn-lg" onClick={() => navigate('/flashcards')}>
+                Back to Flashcards
+              </button>
+              <button className="btn btn-outline-primary btn-lg" onClick={() => navigate('/chat')}>
+                Practice Chatting
+              </button>
+            </div>
           </div>
         </div>
       </>
@@ -174,55 +181,60 @@ export default function FlashcardSession() {
         </div>
 
         <div className="row justify-content-center">
-          <div className="col-md-8">
+          <div className="col-md-8 col-lg-6">
             <div
-              className="card text-center py-5"
-              style={{ cursor: 'pointer', minHeight: '300px' }}
+              className="flip-card"
               onClick={() => setIsFlipped(!isFlipped)}
+              style={{ cursor: 'pointer' }}
             >
-              <div className="card-body d-flex flex-column justify-content-center">
-                <p className="text-muted small mb-2">
-                  {isFlipped ? 'Target Language' : 'Native Language'}
-                </p>
-                <h1 className="display-4">
-                  {isFlipped ? currentCard.target : currentCard.native}
-                </h1>
-                {isFlipped && currentCard.partOfSpeech && (
-                  <span className="badge bg-secondary mx-auto mt-2">{currentCard.partOfSpeech}</span>
-                )}
-                {isFlipped && currentCard.forms && currentCard.forms.type !== 'other' && (
-                  <div className="mt-3 text-muted">
-                    {renderForms(currentCard.forms)}
-                  </div>
-                )}
-                {!isFlipped && (
-                  <p className="text-muted mt-3">Click to reveal answer</p>
-                )}
+              <div className={`flip-card-inner ${isFlipped ? 'flipped' : ''}`}>
+                {/* Front - Native Language */}
+                <div className="flip-card-front card flashcard-review">
+                  <p className="text-muted small mb-3">Your language</p>
+                  <h1 className="display-4 mb-4">{currentCard.native}</h1>
+                  <p className="text-muted mb-0">
+                    <small>Tap to reveal</small>
+                  </p>
+                </div>
+
+                {/* Back - Target Language */}
+                <div className="flip-card-back card flashcard-review">
+                  <p className="text-muted small mb-2">Learning</p>
+                  <h1 className="display-4 mb-2">{currentCard.target}</h1>
+                  {currentCard.partOfSpeech && (
+                    <span className="badge bg-secondary mb-3">{currentCard.partOfSpeech}</span>
+                  )}
+                  {currentCard.forms && currentCard.forms.type !== 'other' && (
+                    <div className="text-muted small">
+                      {renderForms(currentCard.forms)}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {isFlipped && (
-              <div className="d-flex justify-content-center gap-3 mt-4">
+              <div className="d-flex justify-content-center gap-3 mt-4" style={{ animation: 'fadeIn 0.3s ease' }}>
                 <button
-                  className="btn btn-danger btn-lg px-4 d-flex flex-column align-items-center"
-                  onClick={() => handleReview('again')}
+                  className="btn btn-danger btn-lg px-4 d-flex flex-column align-items-center review-btn"
+                  onClick={(e) => { e.stopPropagation(); handleReview('again') }}
                 >
                   <span>Again</span>
-                  <small style={{ fontSize: '0.65rem', opacity: 0.8 }}>Show again</small>
+                  <small style={{ fontSize: '0.7rem', opacity: 0.85 }}>Show again</small>
                 </button>
                 <button
-                  className="btn btn-warning btn-lg px-4 d-flex flex-column align-items-center"
-                  onClick={() => handleReview('hard')}
+                  className="btn btn-warning btn-lg px-4 d-flex flex-column align-items-center review-btn"
+                  onClick={(e) => { e.stopPropagation(); handleReview('hard') }}
                 >
                   <span>Hard</span>
-                  <small style={{ fontSize: '0.65rem', opacity: 0.8 }}>{getHardInterval(currentCard.intervalIndex)}</small>
+                  <small style={{ fontSize: '0.7rem', opacity: 0.85 }}>{getHardInterval(currentCard.intervalIndex)}</small>
                 </button>
                 <button
-                  className="btn btn-success btn-lg px-4 d-flex flex-column align-items-center"
-                  onClick={() => handleReview('easy')}
+                  className="btn btn-success btn-lg px-4 d-flex flex-column align-items-center review-btn"
+                  onClick={(e) => { e.stopPropagation(); handleReview('easy') }}
                 >
                   <span>Easy</span>
-                  <small style={{ fontSize: '0.65rem', opacity: 0.8 }}>{getEasyInterval(currentCard.intervalIndex)}</small>
+                  <small style={{ fontSize: '0.7rem', opacity: 0.85 }}>{getEasyInterval(currentCard.intervalIndex)}</small>
                 </button>
               </div>
             )}
