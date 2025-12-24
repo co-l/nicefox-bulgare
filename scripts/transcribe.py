@@ -4,8 +4,8 @@ import sys
 import json
 from faster_whisper import WhisperModel
 
-# Use large-v3-turbo - best accuracy with good speed
-model = WhisperModel("large-v3-turbo", device="cpu", compute_type="int8")
+# Use small model - good balance of speed and accuracy for VPS
+model = WhisperModel("small", device="cpu", compute_type="int8")
 
 # Map language names to Whisper language codes
 LANGUAGE_MAP = {
