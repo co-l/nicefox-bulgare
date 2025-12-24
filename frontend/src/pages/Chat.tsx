@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import ClickableMessage from '../components/ClickableMessage'
 import { useTTS } from '../hooks/useTTS'
-import { useSTT } from '../hooks/useSTT'
+import { useRealtimeSTT } from '../hooks/useRealtimeSTT'
 import api from '../services/api'
 import type { ChatMessage, Chat as ChatType, GrammarAnalysis } from '../types'
 
@@ -23,7 +23,7 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const { isLoading: ttsLoading, isPlaying, speak, stop } = useTTS()
-  const { isRecording, isTranscribing, startRecording, stopRecording } = useSTT()
+  const { isRecording, transcript, partialTranscript, startRecording, stopRecording } = useRealtimeSTT('bulgarian')
   const [grammarModal, setGrammarModal] = useState<{ analysis: GrammarAnalysis; message: string } | null>(null)
 
   const toggleAutoRead = useCallback(() => {
@@ -78,6 +78,11 @@ export default function Chat() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isSending) return
+
+    // Stop recording if in progress
+    if (isRecording) {
+      stopRecording()
+    }
 
     const userMessage: ChatMessage = {
       role: 'user',
@@ -175,14 +180,11 @@ export default function Chat() {
 
   const handleMicClick = async () => {
     if (isRecording) {
-      try {
-        const text = await stopRecording()
-        if (text.trim()) {
-          setInput(text.trim())
-          inputRef.current?.focus()
-        }
-      } catch (err) {
-        console.error('STT error:', err)
+      stopRecording()
+      // Set the final transcript in the input
+      if (transcript.trim()) {
+        setInput(transcript.trim())
+        inputRef.current?.focus()
       }
     } else {
       try {
@@ -193,18 +195,26 @@ export default function Chat() {
     }
   }
 
+  // Update input field with real-time transcript as user speaks
+  useEffect(() => {
+    if (isRecording) {
+      const fullTranscript = [transcript, partialTranscript].filter(Boolean).join(' ')
+      setInput(fullTranscript)
+    }
+  }, [transcript, partialTranscript, isRecording])
+
   return (
     <>
       <Navbar />
-      <div className="container-fluid" style={{ height: 'calc(100vh - 56px)' }}>
-        <div className="row h-100">
-          <div className="col-md-3 border-end bg-light p-0">
-            <div className="p-3 border-bottom">
+      <div className="container-fluid p-0" style={{ height: 'calc(100vh - 56px)', maxHeight: 'calc(100vh - 56px)', overflow: 'hidden' }}>
+        <div className="row g-0 h-100">
+          <div className="col-md-3 border-end bg-light d-flex flex-column" style={{ height: '100%' }}>
+            <div className="p-3 border-bottom flex-shrink-0">
               <button className="btn btn-primary w-100" onClick={startNewChat}>
                 Nouvelle conversation
               </button>
             </div>
-            <div className="overflow-auto" style={{ height: 'calc(100% - 70px)' }}>
+            <div className="overflow-auto flex-grow-1">
               {chatHistory.map((chat) => (
                 <div
                   key={chat.id}
@@ -226,8 +236,8 @@ export default function Chat() {
             </div>
           </div>
 
-          <div className="col-md-9 d-flex flex-column p-0">
-            <div className="border-bottom p-2 d-flex justify-content-end align-items-center gap-2">
+          <div className="col-md-9 d-flex flex-column p-0" style={{ height: '100%' }}>
+            <div className="border-bottom p-2 d-flex justify-content-end align-items-center gap-2 flex-shrink-0">
               <label className="form-check-label small text-muted" htmlFor="autoRead">
                 Lecture auto
               </label>
@@ -241,7 +251,7 @@ export default function Chat() {
                 />
               </div>
             </div>
-            <div className="flex-grow-1 overflow-auto p-4">
+            <div className="flex-grow-1 overflow-auto p-4" style={{ minHeight: 0 }}>
               {isLoading ? (
                 <div className="text-center">
                   <div className="spinner-border" role="status">
@@ -308,13 +318,26 @@ export default function Chat() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="border-top p-3">
+            <div className="border-top p-3 flex-shrink-0">
               <form onSubmit={handleSubmit} className="d-flex gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  className="form-control"
+                  placeholder={isRecording ? 'Parlez maintenant... (les mots apparaîtront ici)' : 'Tapez votre message...'}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  disabled={isSending || isRecording}
+                  style={{
+                    fontStyle: isRecording && partialTranscript ? 'italic' : 'normal',
+                    color: isRecording && partialTranscript ? '#a0a0a0' : 'inherit',
+                  }}
+                />
                 <button
                   type="button"
                   className={`btn ${isRecording ? 'btn-danger' : 'btn-outline-secondary'}`}
                   onClick={handleMicClick}
-                  disabled={isSending || isTranscribing}
+                  disabled={isSending}
                   title={isRecording ? 'Arrêter l\'enregistrement' : 'Entrée vocale'}
                   style={{
                     fontSize: '1.2rem',
@@ -322,22 +345,9 @@ export default function Chat() {
                     animation: isRecording ? 'pulse 1s infinite' : 'none',
                   }}
                 >
-                  {isTranscribing ? (
-                    <span className="spinner-border spinner-border-sm" />
-                  ) : (
-                    <span>&#127908;</span>
-                  )}
+                  <span>&#127908;</span>
                 </button>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  className="form-control"
-                  placeholder={isRecording ? 'Écoute en cours...' : 'Tapez votre message...'}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  disabled={isSending || isRecording}
-                />
-                <button type="submit" className="btn btn-primary" disabled={isSending || !input.trim() || isRecording}>
+                <button type="submit" className="btn btn-primary" disabled={isSending || !input.trim()}>
                   {isSending ? 'Envoi...' : 'Envoyer'}
                 </button>
               </form>

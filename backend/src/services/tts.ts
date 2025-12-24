@@ -1,33 +1,35 @@
-import { spawn } from 'child_process'
 import { randomUUID } from 'crypto'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, createWriteStream } from 'fs'
 import { join, dirname } from 'path'
 import { unlink } from 'fs/promises'
 import { fileURLToPath } from 'url'
+import { Readable } from 'stream'
+import { pipeline } from 'stream/promises'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const PROJECT_ROOT = join(__dirname, '..', '..', '..')
-const PIPER_BIN = join(PROJECT_ROOT, '.venv', 'bin', 'piper')
-const VOICES_DIR = join(PROJECT_ROOT, '.piper-voices')
-const AUDIO_DIR = join(PROJECT_ROOT, 'audio-cache')
+const BACKEND_ROOT = join(__dirname, '..', '..')
+const AUDIO_DIR = join(BACKEND_ROOT, 'audio-cache')
 const AUDIO_EXPIRY_MS = 30 * 60 * 1000 // 30 minutes
 
-// Map language codes to Piper voice model files
-const VOICE_MAP: Record<string, string> = {
-  bulgarian: 'bg_BG-dimitar-medium',
-  french: 'fr_FR-siwis-medium',
-  spanish: 'es_ES-davefx-medium',
-  german: 'de_DE-thorsten-medium',
-  english: 'en_US-lessac-medium',
-  italian: 'it_IT-riccardo-x_low',
-  portuguese: 'pt_BR-faber-medium',
-  russian: 'ru_RU-irina-medium',
-  chinese: 'zh_CN-huayan-medium',
-  japanese: 'ja_JP-takumi-medium',
-}
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY
+const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1/text-to-speech'
 
-function getModelPath(voice: string): string {
-  return join(VOICES_DIR, `${voice}.onnx`)
+// ElevenLabs voice IDs for different use cases
+// Using a neutral multilingual voice that works well for all languages
+const DEFAULT_VOICE_ID = 'ErXwobaYiN019PkySvjV' // Antoni - friendly male voice
+
+// Map language codes to ElevenLabs model IDs
+const MODEL_MAP: Record<string, string> = {
+  bulgarian: 'eleven_multilingual_v2',
+  french: 'eleven_multilingual_v2',
+  spanish: 'eleven_multilingual_v2',
+  german: 'eleven_multilingual_v2',
+  english: 'eleven_monolingual_v1',
+  italian: 'eleven_multilingual_v2',
+  portuguese: 'eleven_multilingual_v2',
+  russian: 'eleven_multilingual_v2',
+  chinese: 'eleven_multilingual_v2',
+  japanese: 'eleven_multilingual_v2',
 }
 
 // Ensure audio cache directory exists
@@ -41,48 +43,75 @@ interface AudioResult {
 }
 
 export async function generateAudio(text: string, language: string): Promise<AudioResult> {
-  const voiceName = VOICE_MAP[language.toLowerCase()] || VOICE_MAP.english
-  const modelPath = getModelPath(voiceName)
-  const audioId = randomUUID()
-  const filePath = join(AUDIO_DIR, `${audioId}.wav`)
-
-  // Check if voice model exists
-  if (!existsSync(modelPath)) {
-    throw new Error(`Voice model not found: ${voiceName}. Please download it first.`)
+  if (!ELEVENLABS_API_KEY) {
+    console.error('ElevenLabs API key not configured')
+    throw new Error('ElevenLabs API key not configured')
   }
 
-  return new Promise((resolve, reject) => {
-    const piper = spawn(PIPER_BIN, [
-      '--model', modelPath,
-      '--output_file', filePath,
-      '--length-scale', '1.6', // Slower speech
-    ])
+  const modelId = MODEL_MAP[language.toLowerCase()] || MODEL_MAP.english
+  const audioId = randomUUID()
+  const filePath = join(AUDIO_DIR, `${audioId}.mp3`)
 
-    piper.stdin.write(text)
-    piper.stdin.end()
+  console.log(`[TTS] Generating audio for language: ${language}, model: ${modelId}`)
+  console.log(`[TTS] Text length: ${text.length} characters`)
 
-    let stderr = ''
-    piper.stderr.on('data', (data) => {
-      stderr += data.toString()
+  try {
+    // Call ElevenLabs API
+    const url = `${ELEVENLABS_API_URL}/${DEFAULT_VOICE_ID}`
+    console.log(`[TTS] Calling ElevenLabs API: ${url}`)
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Accept': 'audio/mpeg',
+        'Content-Type': 'application/json',
+        'xi-api-key': ELEVENLABS_API_KEY,
+      },
+      body: JSON.stringify({
+        text: text,
+        model_id: modelId,
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+          speed: 0.8, // Slower speech (~1.25x slower)
+        },
+      }),
     })
 
-    piper.on('close', (code) => {
-      if (code === 0) {
-        // Schedule cleanup after expiry
-        setTimeout(() => {
-          cleanupAudio(audioId).catch(console.error)
-        }, AUDIO_EXPIRY_MS)
+    console.log(`[TTS] ElevenLabs response status: ${response.status}`)
 
-        resolve({ audioId, filePath })
-      } else {
-        reject(new Error(`Piper TTS failed (code ${code}): ${stderr}`))
-      }
-    })
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`[TTS] ElevenLabs API error: ${errorText}`)
+      throw new Error(`ElevenLabs API error (${response.status}): ${errorText}`)
+    }
 
-    piper.on('error', (err) => {
-      reject(new Error(`Failed to spawn piper: ${err.message}`))
-    })
-  })
+    // Stream the audio response to file
+    if (!response.body) {
+      console.error('[TTS] No response body from ElevenLabs API')
+      throw new Error('No response body from ElevenLabs API')
+    }
+
+    console.log(`[TTS] Streaming audio to file: ${filePath}`)
+    const writeStream = createWriteStream(filePath)
+    await pipeline(Readable.fromWeb(response.body as any), writeStream)
+
+    console.log(`[TTS] Audio file saved successfully: ${audioId}`)
+
+    // Schedule cleanup after expiry
+    setTimeout(() => {
+      cleanupAudio(audioId).catch(console.error)
+    }, AUDIO_EXPIRY_MS)
+
+    return { audioId, filePath }
+  } catch (error) {
+    console.error('[TTS] Error generating audio:', error)
+    // Clean up file if it was created
+    if (existsSync(filePath)) {
+      await unlink(filePath).catch(() => {})
+    }
+    throw error
+  }
 }
 
 export function getAudioPath(audioId: string): string | null {
@@ -91,7 +120,7 @@ export function getAudioPath(audioId: string): string | null {
     return null
   }
 
-  const filePath = join(AUDIO_DIR, `${audioId}.wav`)
+  const filePath = join(AUDIO_DIR, `${audioId}.mp3`)
   if (existsSync(filePath)) {
     return filePath
   }

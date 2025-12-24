@@ -19,23 +19,27 @@ interface UserLanguageRecord {
 router.get('/audio/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params
+    console.log(`[TTS] Audio requested: ${id}`)
 
     const filePath = getAudioPath(id)
     if (!filePath) {
+      console.error(`[TTS] Audio file not found: ${id}`)
       res.status(404).json({ error: 'Audio not found' })
       return
     }
 
+    console.log(`[TTS] Streaming audio file: ${filePath}`)
     const stats = await stat(filePath)
+    console.log(`[TTS] File size: ${stats.size} bytes`)
 
-    res.setHeader('Content-Type', 'audio/wav')
+    res.setHeader('Content-Type', 'audio/mpeg')
     res.setHeader('Content-Length', stats.size)
     res.setHeader('Accept-Ranges', 'bytes')
 
     const stream = createReadStream(filePath)
     stream.pipe(res)
   } catch (error) {
-    console.error('Audio streaming error:', error)
+    console.error('[TTS] Audio streaming error:', error)
     res.status(500).json({ error: 'Failed to stream audio' })
   }
 })
@@ -55,6 +59,8 @@ router.post('/generate', authMiddleware, async (req: AuthRequest, res: Response)
       return
     }
 
+    console.log(`[TTS] Generate request from user ${req.userId}`)
+
     // Get user's target language
     const userLang = await runSingleQuery<UserLanguageRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)
@@ -63,13 +69,16 @@ router.post('/generate', authMiddleware, async (req: AuthRequest, res: Response)
     )
 
     const language = userLang?.l.properties.language || 'english'
+    console.log(`[TTS] User language: ${language}`)
 
     const { audioId } = await generateAudio(text, language)
 
+    console.log(`[TTS] Audio generated successfully: ${audioId}`)
     res.json({ audioId })
   } catch (error) {
-    console.error('TTS generation error:', error)
-    res.status(500).json({ error: 'Failed to generate audio' })
+    console.error('[TTS] TTS generation error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to generate audio'
+    res.status(500).json({ error: errorMessage })
   }
 })
 

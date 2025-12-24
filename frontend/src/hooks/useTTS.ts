@@ -41,7 +41,8 @@ export function useTTS(): UseTTSReturn {
       const { audioId } = response.data
 
       // Create audio element and play
-      const audio = new Audio(`/api/tts/audio/${audioId}`)
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3188'
+      const audio = new Audio(`${apiUrl}/api/tts/audio/${audioId}`)
       audioRef.current = audio
 
       audio.onplay = () => setIsPlaying(true)
