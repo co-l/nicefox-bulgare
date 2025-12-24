@@ -37,7 +37,7 @@ export default function WordPopover({
         setTranslation(response.data)
       } catch (err) {
         console.error('Translation error:', err)
-        setError('Failed to translate')
+        setError('Échec de la traduction')
       } finally {
         setIsLoading(false)
       }
@@ -113,7 +113,7 @@ export default function WordPopover({
           {isLoading ? (
             <div className="text-center">
               <div className="spinner-border spinner-border-sm" role="status">
-                <span className="visually-hidden">Loading...</span>
+                <span className="visually-hidden">Chargement...</span>
               </div>
             </div>
           ) : error ? (
@@ -124,7 +124,7 @@ export default function WordPopover({
                 <div>
                   <h6 className="mb-0">{translation.lemma}</h6>
                   {translation.word !== translation.lemma && (
-                    <small className="text-muted">from: {translation.word}</small>
+                    <small className="text-muted">de : {translation.word}</small>
                   )}
                 </div>
                 <span className="badge bg-secondary">{translation.partOfSpeech}</span>
@@ -143,7 +143,7 @@ export default function WordPopover({
                 onClick={handleAddToFlashcards}
                 disabled={added}
               >
-                {added ? 'Added!' : 'Add to Flashcards'}
+                {added ? 'Ajouté !' : 'Ajouter aux flashcards'}
               </button>
             </>
           ) : null}

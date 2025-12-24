@@ -19,7 +19,7 @@ export default function Login() {
       await login(email, password)
       navigate('/')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(err instanceof Error ? err.message : 'Échec de la connexion')
     } finally {
       setIsLoading(false)
     }
@@ -31,12 +31,12 @@ export default function Login() {
         <div className="col-md-6 col-lg-4">
           <div className="card shadow">
             <div className="card-body p-4">
-              <h2 className="text-center mb-4">Login</h2>
+              <h2 className="text-center mb-4">Connexion</h2>
               {error && <div className="alert alert-danger">{error}</div>}
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
                   <label htmlFor="email" className="form-label">
-                    Email
+                    Adresse e-mail
                   </label>
                   <input
                     type="email"
@@ -49,7 +49,7 @@ export default function Login() {
                 </div>
                 <div className="mb-3">
                   <label htmlFor="password" className="form-label">
-                    Password
+                    Mot de passe
                   </label>
                   <input
                     type="password"
@@ -65,11 +65,11 @@ export default function Login() {
                   className="btn btn-primary w-100"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Logging in...' : 'Login'}
+                  {isLoading ? 'Connexion...' : 'Se connecter'}
                 </button>
               </form>
               <p className="text-center mt-3 mb-0">
-                Don't have an account? <Link to="/register">Register</Link>
+                Pas encore de compte ? <Link to="/register">S'inscrire</Link>
               </p>
             </div>
           </div>

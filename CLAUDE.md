@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Become Fluent is a language learning app combining AI-powered conversations (Mistral) with spaced-repetition flashcards. Users chat with an AI tutor in their target language and build vocabulary through flashcard review sessions.
+**Apprendre le bulgare** is a French-language app for learning Bulgarian, combining AI-powered conversations (Mistral) with spaced-repetition flashcards. Users chat with an AI tutor in Bulgarian and build vocabulary through flashcard review sessions.
+
+The app is hardcoded for French speakers learning Bulgarian (no language selection).
 
 ## Commands
 

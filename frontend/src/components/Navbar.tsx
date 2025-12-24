@@ -35,7 +35,7 @@ export default function Navbar() {
     <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
       <div className="container">
         <Link className="navbar-brand" to="/">
-          Become Fluent
+          Apprendre le bulgare
         </Link>
         <button
           className="navbar-toggler"
@@ -49,7 +49,7 @@ export default function Navbar() {
           <ul className="navbar-nav me-auto">
             <li className="nav-item">
               <Link className="nav-link" to="/chat">
-                Chat
+                Conversation
               </Link>
             </li>
             <li className="nav-item">
@@ -79,17 +79,17 @@ export default function Navbar() {
                 role="button"
                 data-bs-toggle="dropdown"
               >
-                {user?.name || 'Account'}
+                {user?.name || 'Compte'}
               </a>
               <ul className="dropdown-menu dropdown-menu-end">
                 <li>
                   <Link className="dropdown-item" to="/profile">
-                    Profile
+                    Profil
                   </Link>
                 </li>
                 <li>
                   <Link className="dropdown-item" to="/onboarding">
-                    Language Settings
+                    Niveau de bulgare
                   </Link>
                 </li>
                 <li>
@@ -97,7 +97,7 @@ export default function Navbar() {
                 </li>
                 <li>
                   <button className="dropdown-item" onClick={handleLogout}>
-                    Logout
+                    Déconnexion
                   </button>
                 </li>
               </ul>

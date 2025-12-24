@@ -128,7 +128,7 @@ export default function Chat() {
         ...prev,
         {
           role: 'assistant',
-          content: 'Sorry, I encountered an error. Please try again.',
+          content: 'Désolé, une erreur s\'est produite. Veuillez réessayer.',
           timestamp: new Date().toISOString(),
         },
       ])
@@ -201,14 +201,14 @@ export default function Chat() {
           <div className="col-md-3 border-end bg-light p-0">
             <div className="p-3 border-bottom">
               <button className="btn btn-primary w-100" onClick={startNewChat}>
-                New Conversation
+                Nouvelle conversation
               </button>
             </div>
             <div className="overflow-auto" style={{ height: 'calc(100% - 70px)' }}>
               {chatHistory.map((chat) => (
                 <div
                   key={chat.id}
-                  className={`p-3 border-bottom cursor-pointer ${chatId === chat.id ? 'bg-white' : ''}`}
+                  className={`p-3 border-bottom cursor-pointer ${chatId === chat.id ? 'bg-primary bg-opacity-25' : ''}`}
                   style={{ cursor: 'pointer' }}
                   onClick={() => navigate(`/chat/${chat.id}`)}
                 >
@@ -216,12 +216,12 @@ export default function Chat() {
                     {new Date(chat.createdAt).toLocaleDateString()}
                   </small>
                   <p className="mb-0 text-truncate">
-                    {chat.messages?.[0]?.content || 'New conversation'}
+                    {chat.messages?.[0]?.content || 'Nouvelle conversation'}
                   </p>
                 </div>
               ))}
               {chatHistory.length === 0 && (
-                <p className="text-muted text-center mt-4">No conversations yet</p>
+                <p className="text-muted text-center mt-4">Aucune conversation</p>
               )}
             </div>
           </div>
@@ -229,7 +229,7 @@ export default function Chat() {
           <div className="col-md-9 d-flex flex-column p-0">
             <div className="border-bottom p-2 d-flex justify-content-end align-items-center gap-2">
               <label className="form-check-label small text-muted" htmlFor="autoRead">
-                Auto-read
+                Lecture auto
               </label>
               <div className="form-check form-switch m-0">
                 <input
@@ -245,14 +245,14 @@ export default function Chat() {
               {isLoading ? (
                 <div className="text-center">
                   <div className="spinner-border" role="status">
-                    <span className="visually-hidden">Loading...</span>
+                    <span className="visually-hidden">Chargement...</span>
                   </div>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="text-center mt-5">
-                  <h4 className="text-muted mb-3">Ready to practice?</h4>
+                  <h4 className="text-muted mb-3">Prêt à pratiquer ?</h4>
                   <button className="btn btn-primary btn-lg" onClick={startNewChat}>
-                    Start Conversation
+                    Démarrer une conversation
                   </button>
                 </div>
               ) : (
@@ -265,7 +265,7 @@ export default function Chat() {
                       <button
                         className="btn btn-link p-0 grammar-indicator align-self-center"
                         onClick={() => setGrammarModal({ analysis: msg.grammar!, message: msg.content })}
-                        title="View grammar feedback"
+                        title="Voir les corrections"
                       >
                         {msg.grammar.score === 'perfect' ? (
                           <span style={{ color: 'var(--accent-success)' }}>&#10004;</span>
@@ -288,7 +288,7 @@ export default function Chat() {
                         className="btn btn-link p-0 text-secondary align-self-center"
                         onClick={() => handleTTS(msg.content, idx)}
                         disabled={ttsLoading && playingIdx === idx}
-                        title={isPlaying && playingIdx === idx ? 'Pause' : 'Play'}
+                        title={isPlaying && playingIdx === idx ? 'Pause' : 'Écouter'}
                         style={{ fontSize: '1.2rem', lineHeight: 1, opacity: 0.7, transition: 'opacity 0.15s' }}
                         onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
                         onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
@@ -315,7 +315,7 @@ export default function Chat() {
                   className={`btn ${isRecording ? 'btn-danger' : 'btn-outline-secondary'}`}
                   onClick={handleMicClick}
                   disabled={isSending || isTranscribing}
-                  title={isRecording ? 'Stop recording' : 'Start voice input'}
+                  title={isRecording ? 'Arrêter l\'enregistrement' : 'Entrée vocale'}
                   style={{
                     fontSize: '1.2rem',
                     lineHeight: 1,
@@ -332,13 +332,13 @@ export default function Chat() {
                   ref={inputRef}
                   type="text"
                   className="form-control"
-                  placeholder={isRecording ? 'Listening...' : 'Type your message...'}
+                  placeholder={isRecording ? 'Écoute en cours...' : 'Tapez votre message...'}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   disabled={isSending || isRecording}
                 />
                 <button type="submit" className="btn btn-primary" disabled={isSending || !input.trim() || isRecording}>
-                  {isSending ? 'Sending...' : 'Send'}
+                  {isSending ? 'Envoi...' : 'Envoyer'}
                 </button>
               </form>
             </div>
@@ -358,11 +358,11 @@ export default function Chat() {
               <div className="modal-header">
                 <h5 className="modal-title d-flex align-items-center gap-2">
                   {grammarModal.analysis.score === 'perfect' ? (
-                    <span style={{ color: '#4caf50' }}>&#10004; Perfect!</span>
+                    <span style={{ color: '#4caf50' }}>&#10004; Parfait !</span>
                   ) : grammarModal.analysis.score === 'minor' ? (
-                    <span style={{ color: '#ff9800' }}>&#9888; Minor Issues</span>
+                    <span style={{ color: '#ff9800' }}>&#9888; Petites erreurs</span>
                   ) : (
-                    <span style={{ color: '#f44336' }}>&#10008; Needs Work</span>
+                    <span style={{ color: '#f44336' }}>&#10008; À corriger</span>
                   )}
                 </h5>
                 <button
@@ -373,7 +373,7 @@ export default function Chat() {
               </div>
               <div className="modal-body">
                 <div className="mb-3 p-2 bg-light rounded">
-                  <small className="text-muted">Your message:</small>
+                  <small className="text-muted">Votre message :</small>
                   <p className="mb-0">{grammarModal.message}</p>
                 </div>
 
@@ -383,7 +383,7 @@ export default function Chat() {
 
                 {grammarModal.analysis.corrections && grammarModal.analysis.corrections.length > 0 && (
                   <div className="mt-3">
-                    <h6>Corrections:</h6>
+                    <h6>Corrections :</h6>
                     {grammarModal.analysis.corrections.map((correction, idx) => (
                       <div key={idx} className="mb-2 p-2 border rounded">
                         <div className="d-flex gap-2 align-items-center mb-1">
@@ -399,7 +399,7 @@ export default function Chat() {
 
                     {grammarModal.analysis.correctedSentence && (
                       <div className="mt-3 p-2 bg-success bg-opacity-10 border border-success rounded">
-                        <small className="text-success fw-bold">Corrected sentence:</small>
+                        <small className="text-success fw-bold">Phrase corrigée :</small>
                         <p className="mb-0 mt-1">{grammarModal.analysis.correctedSentence}</p>
                       </div>
                     )}
@@ -412,7 +412,7 @@ export default function Chat() {
                   className="btn btn-secondary"
                   onClick={() => setGrammarModal(null)}
                 >
-                  Close
+                  Fermer
                 </button>
               </div>
             </div>

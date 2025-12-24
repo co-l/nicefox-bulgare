@@ -10,9 +10,9 @@ const INTERVALS = [15, 1440, 4320, 10080, 21600, 43200]
 // Calculate interval text for display
 function getIntervalText(intervalMinutes: number): string {
   if (intervalMinutes < 60) return `${intervalMinutes} min`
-  if (intervalMinutes < 1440) return `${Math.round(intervalMinutes / 60)} hours`
+  if (intervalMinutes < 1440) return `${Math.round(intervalMinutes / 60)}h`
   const days = Math.round(intervalMinutes / 1440)
-  return days === 1 ? '1 day' : `${days} days`
+  return days === 1 ? '1 jour' : `${days} jours`
 }
 
 // Get what interval "easy" would give
@@ -95,7 +95,7 @@ export default function FlashcardSession() {
         <Navbar />
         <div className="container mt-4 text-center">
           <div className="spinner-border" role="status">
-            <span className="visually-hidden">Loading...</span>
+            <span className="visually-hidden">Chargement...</span>
           </div>
         </div>
       </>
@@ -112,19 +112,19 @@ export default function FlashcardSession() {
               {reviewed > 0 ? '🎉' : '✨'}
             </div>
             <h2 style={{ marginBottom: '0.5rem' }}>
-              {reviewed > 0 ? 'Session Complete!' : 'All Caught Up!'}
+              {reviewed > 0 ? 'Session terminée !' : 'Tout est révisé !'}
             </h2>
             <p className="text-muted mb-4" style={{ fontSize: '1.1rem' }}>
               {reviewed > 0
-                ? `You reviewed ${reviewed} card${reviewed !== 1 ? 's' : ''}. Great work!`
-                : 'No cards due for review right now.'}
+                ? `Vous avez révisé ${reviewed} carte${reviewed !== 1 ? 's' : ''}. Bravo !`
+                : 'Aucune carte à réviser pour le moment.'}
             </p>
             <div className="d-flex justify-content-center gap-3">
               <button className="btn btn-primary btn-lg" onClick={() => navigate('/flashcards')}>
-                Back to Flashcards
+                Retour aux flashcards
               </button>
               <button className="btn btn-outline-primary btn-lg" onClick={() => navigate('/chat')}>
-                Practice Chatting
+                Pratiquer la conversation
               </button>
             </div>
           </div>
@@ -157,9 +157,9 @@ export default function FlashcardSession() {
       case 'verb':
         return (
           <div className="text-center">
-            <div>present: {forms.forms.present}</div>
-            <div>past: {forms.forms.past}</div>
-            <div>future: {forms.forms.future}</div>
+            <div>présent : {forms.forms.present}</div>
+            <div>passé : {forms.forms.past}</div>
+            <div>futur : {forms.forms.future}</div>
           </div>
         )
       default:
@@ -173,10 +173,10 @@ export default function FlashcardSession() {
       <div className="container mt-4">
         <div className="d-flex justify-content-between mb-4">
           <span className="text-muted">
-            Card {currentIndex + 1} of {cards.length}
+            Carte {currentIndex + 1} sur {cards.length}
           </span>
           <button className="btn btn-outline-secondary btn-sm" onClick={() => navigate('/flashcards')}>
-            Exit Session
+            Quitter la session
           </button>
         </div>
 
@@ -190,16 +190,16 @@ export default function FlashcardSession() {
               <div className={`flip-card-inner ${isFlipped ? 'flipped' : ''}`}>
                 {/* Front - Native Language */}
                 <div className="flip-card-front card flashcard-review">
-                  <p className="text-muted small mb-3">Your language</p>
+                  <p className="text-muted small mb-3">Français</p>
                   <h1 className="display-4 mb-4">{currentCard.native}</h1>
                   <p className="text-muted mb-0">
-                    <small>Tap to reveal</small>
+                    <small>Touchez pour révéler</small>
                   </p>
                 </div>
 
                 {/* Back - Target Language */}
                 <div className="flip-card-back card flashcard-review">
-                  <p className="text-muted small mb-2">Learning</p>
+                  <p className="text-muted small mb-2">Bulgare</p>
                   <h1 className="display-4 mb-2">{currentCard.target}</h1>
                   {currentCard.partOfSpeech && (
                     <span className="badge bg-secondary mb-3">{currentCard.partOfSpeech}</span>
@@ -219,21 +219,21 @@ export default function FlashcardSession() {
                   className="btn btn-danger btn-lg px-4 d-flex flex-column align-items-center review-btn"
                   onClick={(e) => { e.stopPropagation(); handleReview('again') }}
                 >
-                  <span>Again</span>
-                  <small style={{ fontSize: '0.7rem', opacity: 0.85 }}>Show again</small>
+                  <span>Encore</span>
+                  <small style={{ fontSize: '0.7rem', opacity: 0.85 }}>Revoir</small>
                 </button>
                 <button
                   className="btn btn-warning btn-lg px-4 d-flex flex-column align-items-center review-btn"
                   onClick={(e) => { e.stopPropagation(); handleReview('hard') }}
                 >
-                  <span>Hard</span>
+                  <span>Difficile</span>
                   <small style={{ fontSize: '0.7rem', opacity: 0.85 }}>{getHardInterval(currentCard.intervalIndex)}</small>
                 </button>
                 <button
                   className="btn btn-success btn-lg px-4 d-flex flex-column align-items-center review-btn"
                   onClick={(e) => { e.stopPropagation(); handleReview('easy') }}
                 >
-                  <span>Easy</span>
+                  <span>Facile</span>
                   <small style={{ fontSize: '0.7rem', opacity: 0.85 }}>{getEasyInterval(currentCard.intervalIndex)}</small>
                 </button>
               </div>
