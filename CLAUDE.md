@@ -35,7 +35,7 @@ cd backend && npx tsc --noEmit
 
 ### Monorepo Structure
 - **npm workspaces** with `frontend/` and `backend/` packages
-- Frontend proxies `/api` requests to backend via Vite config
+- Frontend calls backend API directly via `VITE_API_URL` environment variable
 
 ### Backend (`backend/src/`)
 - **Express + TypeScript** with ES modules (`.js` extensions in imports)
@@ -70,7 +70,14 @@ Located in `backend/src/utils/spacedRepetition.ts`:
 - Proficiency-appropriate vocabulary guidelines
 
 ## Environment Setup
-Copy `.env.example` to `.env` and configure:
+
+### Backend (`backend/.env`)
+Copy `backend/.env.example` to `backend/.env` and configure:
 - `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` - local Neo4j instance
 - `JWT_SECRET`, `JWT_REFRESH_SECRET` - min 32 chars each
 - `MISTRAL_API_KEY` - for AI chat
+- `FRONTEND_URL` - frontend origin for CORS (e.g., `http://localhost:5180`)
+
+### Frontend (`frontend/.env`)
+Copy `frontend/.env.example` to `frontend/.env` and configure:
+- `VITE_API_URL` - backend API URL (e.g., `http://localhost:3188` or `https://api.yourdomain.com`)
