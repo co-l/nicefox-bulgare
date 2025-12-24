@@ -90,12 +90,18 @@ export default function WordPopover({
     }
   }
 
-  // Position the popover above the word
+  // Position the popover above or below the word depending on available space
+  // Estimate popup height (will be around 200-300px depending on content)
+  const estimatedPopupHeight = 250
+  const spaceAbove = position.y
+  const spaceBelow = window.innerHeight - position.y
+  const showBelow = spaceAbove < estimatedPopupHeight && spaceBelow > spaceAbove
+
   const style: React.CSSProperties = {
     position: 'fixed',
-    left: Math.min(position.x, window.innerWidth - 280),
-    top: Math.max(position.y - 10, 10),
-    transform: 'translateY(-100%)',
+    left: Math.min(Math.max(position.x - 125, 10), window.innerWidth - 260),
+    top: showBelow ? position.y + 10 : Math.max(position.y - 10, 10),
+    transform: showBelow ? 'translateY(0)' : 'translateY(-100%)',
     zIndex: 1050,
     minWidth: '250px',
     maxWidth: '300px',

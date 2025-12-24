@@ -58,6 +58,8 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--shadow-md);
   border-bottom: 1px solid var(--border-subtle);
   backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 1030;
 }
 
 .navbar-brand {
@@ -370,6 +372,7 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   padding: 0.5rem;
+  z-index: 1050;
 }
 
 .dropdown-item {
