@@ -5,20 +5,24 @@ import { calculateNextReview, getInitialReview, ReviewAction } from '../utils/sp
 
 const router = Router()
 
-// NiceFox GraphDB returns flat node/relationship objects
+// NiceFox GraphDB returns node/relationship objects with properties nested
 interface FlashcardRecord {
   f: {
-    id: string
-    native: string
-    target: string
-    original_word?: string
-    part_of_speech?: string
-    forms?: string // JSON stringified
+    properties: {
+      id: string
+      native: string
+      target: string
+      original_word?: string
+      part_of_speech?: string
+      forms?: string // JSON stringified
+    }
   }
   rel: {
-    next_display: number
-    interval_index: number
-    status: string
+    properties: {
+      next_display: number
+      interval_index: number
+      status: string
+    }
   }
 }
 
@@ -35,17 +39,21 @@ router.get('/', async (req: Request, res: Response) => {
       { userId: req.authUser!.id }
     )
 
-    const flashcards = results.map((r) => ({
-      id: r.f.id,
-      native: r.f.native,
-      target: r.f.target,
-      originalWord: r.f.original_word,
-      partOfSpeech: r.f.part_of_speech,
-      forms: r.f.forms ? JSON.parse(r.f.forms) : undefined,
-      nextDisplay: new Date(r.rel.next_display || Date.now()),
-      intervalIndex: r.rel.interval_index || 0,
-      status: r.rel.status || 'new',
-    }))
+    const flashcards = results.map((r) => {
+      const f = r.f.properties
+      const rel = r.rel.properties
+      return {
+        id: f.id,
+        native: f.native,
+        target: f.target,
+        originalWord: f.original_word,
+        partOfSpeech: f.part_of_speech,
+        forms: f.forms ? JSON.parse(f.forms) : undefined,
+        nextDisplay: new Date(rel.next_display || Date.now()),
+        intervalIndex: rel.interval_index || 0,
+        status: rel.status || 'new',
+      }
+    })
 
     res.json({ flashcards })
   } catch (error) {
@@ -81,17 +89,21 @@ router.get('/session', async (req: Request, res: Response) => {
       { userId: req.authUser!.id, now: Date.now() }
     )
 
-    const cards = results.map((r) => ({
-      id: r.f.id,
-      native: r.f.native,
-      target: r.f.target,
-      originalWord: r.f.original_word,
-      partOfSpeech: r.f.part_of_speech,
-      forms: r.f.forms ? JSON.parse(r.f.forms) : undefined,
-      nextDisplay: new Date(r.rel.next_display || Date.now()),
-      intervalIndex: r.rel.interval_index || 0,
-      status: r.rel.status || 'new',
-    }))
+    const cards = results.map((r) => {
+      const f = r.f.properties
+      const rel = r.rel.properties
+      return {
+        id: f.id,
+        native: f.native,
+        target: f.target,
+        originalWord: f.original_word,
+        partOfSpeech: f.part_of_speech,
+        forms: f.forms ? JSON.parse(f.forms) : undefined,
+        nextDisplay: new Date(rel.next_display || Date.now()),
+        intervalIndex: rel.interval_index || 0,
+        status: rel.status || 'new',
+      }
+    })
 
     res.json({ cards })
   } catch (error) {
@@ -115,12 +127,12 @@ router.post('/', async (req: Request, res: Response) => {
     // If language not specified, use the first language the user is learning
     let targetLanguage = language
     if (!targetLanguage) {
-      const langResult = await runSingleQuery<{ l: { language: string } }>(
+      const langResult = await runSingleQuery<{ l: { properties: { language: string } } }>(
         `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)
          RETURN l LIMIT 1`,
         { userId: req.authUser!.id }
       )
-      targetLanguage = langResult?.l.language
+      targetLanguage = langResult?.l.properties.language
     }
 
     if (!targetLanguage) {
@@ -199,7 +211,7 @@ router.post('/:id/review', async (req: Request, res: Response) => {
       return
     }
 
-    const currentIntervalIndex = current.rel.interval_index || 0
+    const currentIntervalIndex = current.rel.properties.interval_index || 0
     const result = calculateNextReview(currentIntervalIndex, action)
 
     await runQuery(

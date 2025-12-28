@@ -24,8 +24,10 @@ export default function Onboarding() {
         const response = await api.get('/user/profile')
         const { languages } = response.data
 
-        if (languages && languages.length > 0) {
-          setProficiency(languages[0].proficiency)
+        // Check specifically for Bulgarian
+        const bulgarian = languages?.find((l: { language: string }) => l.language === 'Bulgarian')
+        if (bulgarian) {
+          setProficiency(bulgarian.proficiency)
           setIsEditing(true)
         }
       } catch {

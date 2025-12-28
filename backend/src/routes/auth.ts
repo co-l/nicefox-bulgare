@@ -8,13 +8,15 @@ const router = Router()
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'https://auth.nicefox.net'
 
-// NiceFox GraphDB returns flat node objects
+// NiceFox GraphDB returns node objects with properties nested
 interface UserRecord {
   u: {
-    id: string
-    email: string
-    name: string
-    native_language?: string
+    properties: {
+      id: string
+      email: string
+      name: string
+      native_language?: string
+    }
   }
 }
 
@@ -28,14 +30,16 @@ async function ensureUserExists(authId: string, email: string): Promise<void> {
 
   if (!existing) {
     // Create new user with SSO ID
+    // Native language defaults to French (app is for French speakers learning Bulgarian)
     await runQuery(
       `CREATE (u:BF_User {
         id: $id,
         email: $email,
         name: $name,
+        native_language: $nativeLanguage,
         created_at: $createdAt
       })`,
-      { id: authId, email, name: email.split('@')[0], createdAt: Date.now() }
+      { id: authId, email, name: email.split('@')[0], nativeLanguage: 'French', createdAt: Date.now() }
     )
   }
 }
@@ -75,7 +79,7 @@ router.get('/me', ssoAuth, async (req: Request, res: Response) => {
       return
     }
 
-    const user = result.u
+    const user = result.u.properties
     res.json({
       user: {
         id: user.id,

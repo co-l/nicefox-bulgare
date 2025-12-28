@@ -1,7 +1,16 @@
 // @ts-ignore - nicefox-graphdb is imported from TypeScript source
-import { NiceFoxGraphDB } from 'nicefox-graphdb/packages/client/src/index.ts'
+import { NiceFoxGraphDB, TestClient } from 'nicefox-graphdb/packages/client/src/index.ts'
 
 let graph: NiceFoxGraphDB | null = null
+let testClient: TestClient | null = null
+
+/**
+ * Set a test client for testing purposes.
+ * When set, all queries will be routed through this client instead of the real NiceFoxGraphDB.
+ */
+export function setTestClient(client: TestClient | null): void {
+  testClient = client
+}
 
 export function getGraph(): NiceFoxGraphDB {
   if (!graph) {
@@ -39,6 +48,9 @@ export async function runQuery<T>(
   cypher: string,
   params: Record<string, unknown> = {}
 ): Promise<T[]> {
+  if (testClient) {
+    return testClient.query<T>(cypher, params)
+  }
   return getGraph().query<T>(cypher, params)
 }
 

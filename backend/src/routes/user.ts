@@ -3,20 +3,24 @@ import { runQuery, runSingleQuery } from '../db.js'
 
 const router = Router()
 
-// NiceFox GraphDB returns flat node objects
+// NiceFox GraphDB returns node objects with properties nested
 interface UserRecord {
   u: {
-    id: string
-    email: string
-    name: string
-    native_language?: string
+    properties: {
+      id: string
+      email: string
+      name: string
+      native_language?: string
+    }
   }
 }
 
 interface LanguageRecord {
   l: {
-    language: string
-    proficiency: string
+    properties: {
+      language: string
+      proficiency: string
+    }
   }
 }
 
@@ -32,7 +36,7 @@ router.get('/profile', async (req: Request, res: Response) => {
       return
     }
 
-    const user = result.u
+    const user = result.u.properties
 
     // Also fetch languages
     const langResults = await runQuery<LanguageRecord>(
@@ -42,8 +46,8 @@ router.get('/profile', async (req: Request, res: Response) => {
     )
 
     const languages = langResults.map((r) => ({
-      language: r.l.language,
-      proficiency: r.l.proficiency,
+      language: r.l.properties.language,
+      proficiency: r.l.properties.proficiency,
     }))
 
     res.json({
@@ -104,8 +108,8 @@ router.get('/languages', async (req: Request, res: Response) => {
     )
 
     const languages = results.map((r) => ({
-      language: r.l.language,
-      proficiency: r.l.proficiency,
+      language: r.l.properties.language,
+      proficiency: r.l.properties.proficiency,
     }))
 
     res.json({ languages })

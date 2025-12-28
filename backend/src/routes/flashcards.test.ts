@@ -80,17 +80,21 @@ describe('Flashcards Routes', () => {
       mockRunQuery.mockResolvedValueOnce([
         {
           f: {
-            id: 'fc-1',
-            native: 'bonjour',
-            target: 'zdravei',
-            original_word: 'zdravei',
-            part_of_speech: 'greeting',
-            forms: null,
+            properties: {
+              id: 'fc-1',
+              native: 'bonjour',
+              target: 'zdravei',
+              original_word: 'zdravei',
+              part_of_speech: 'greeting',
+              forms: null,
+            },
           },
           rel: {
-            next_display: Date.now() + 86400000,
-            interval_index: 1,
-            status: 'learning',
+            properties: {
+              next_display: Date.now() + 86400000,
+              interval_index: 1,
+              status: 'learning',
+            },
           },
         },
       ])
@@ -152,14 +156,18 @@ describe('Flashcards Routes', () => {
       mockRunQuery.mockResolvedValueOnce([
         {
           f: {
-            id: 'fc-1',
-            native: 'bonjour',
-            target: 'zdravei',
+            properties: {
+              id: 'fc-1',
+              native: 'bonjour',
+              target: 'zdravei',
+            },
           },
           rel: {
-            next_display: Date.now() - 1000,
-            interval_index: 0,
-            status: 'new',
+            properties: {
+              next_display: Date.now() - 1000,
+              interval_index: 0,
+              status: 'new',
+            },
           },
         },
       ])
@@ -178,7 +186,7 @@ describe('Flashcards Routes', () => {
     it('should create a new flashcard', async () => {
       // Mock language lookup
       mockRunSingleQuery.mockResolvedValueOnce({
-        l: { language: 'Bulgarian' },
+        l: { properties: { language: 'Bulgarian' } },
       })
       // Mock creation
       mockRunQuery.mockResolvedValueOnce([])
@@ -231,8 +239,8 @@ describe('Flashcards Routes', () => {
     it('should update flashcard after easy review', async () => {
       // Mock flashcard lookup
       mockRunSingleQuery.mockResolvedValueOnce({
-        f: { id: 'fc-1' },
-        rel: { interval_index: 0 },
+        f: { properties: { id: 'fc-1' } },
+        rel: { properties: { interval_index: 0 } },
       })
       // Mock update
       mockRunQuery.mockResolvedValueOnce([])

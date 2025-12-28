@@ -54,10 +54,12 @@ describe('Auth Routes (SSO)', () => {
       mockRunQuery.mockResolvedValueOnce([]) // user creation
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
-          id: 'user-123',
-          email: 'test@example.com',
-          name: 'Test User',
-          native_language: 'French',
+          properties: {
+            id: 'user-123',
+            email: 'test@example.com',
+            name: 'Test User',
+            native_language: 'French',
+          },
         },
       })
 
@@ -81,17 +83,21 @@ describe('Auth Routes (SSO)', () => {
       // Mock: existing user found
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
-          id: 'user-123',
-          email: 'test@example.com',
-          name: 'Existing User',
+          properties: {
+            id: 'user-123',
+            email: 'test@example.com',
+            name: 'Existing User',
+          },
         },
       }) // ensureUserExists check - user exists
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
-          id: 'user-123',
-          email: 'test@example.com',
-          name: 'Existing User',
-          native_language: null,
+          properties: {
+            id: 'user-123',
+            email: 'test@example.com',
+            name: 'Existing User',
+            native_language: null,
+          },
         },
       })
 
@@ -128,10 +134,10 @@ describe('Auth Routes (SSO)', () => {
       const token = createToken('user-123', 'test@example.com')
       
       mockRunSingleQuery.mockResolvedValueOnce({
-        u: { id: 'user-123', email: 'test@example.com', name: 'Test User' },
+        u: { properties: { id: 'user-123', email: 'test@example.com', name: 'Test User' } },
       })
       mockRunSingleQuery.mockResolvedValueOnce({
-        u: { id: 'user-123', email: 'test@example.com', name: 'Test User', native_language: null },
+        u: { properties: { id: 'user-123', email: 'test@example.com', name: 'Test User', native_language: null } },
       })
 
       const app = createApp()

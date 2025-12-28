@@ -87,7 +87,7 @@ router.post('/', async (req: Request, res: Response) => {
       return
     }
 
-    const nativeLanguage = userLang.u.properties.native_language || 'English'
+    const nativeLanguage = userLang.u.properties.native_language || 'French'
     const targetLanguage = userLang.l.properties.language
 
     const mistral = getMistral()

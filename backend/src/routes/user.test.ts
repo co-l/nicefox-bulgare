@@ -45,10 +45,12 @@ describe('User Routes', () => {
       // Mock user found
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
-          id: 'test-user-123',
-          email: 'test@example.com',
-          name: 'Test User',
-          native_language: 'French',
+          properties: {
+            id: 'test-user-123',
+            email: 'test@example.com',
+            name: 'Test User',
+            native_language: 'French',
+          },
         },
       })
 
@@ -56,8 +58,10 @@ describe('User Routes', () => {
       mockRunQuery.mockResolvedValueOnce([
         {
           l: {
-            language: 'Bulgarian',
-            proficiency: 'beginner',
+            properties: {
+              language: 'Bulgarian',
+              proficiency: 'beginner',
+            },
           },
         },
       ])
@@ -150,14 +154,18 @@ describe('User Routes', () => {
       mockRunQuery.mockResolvedValueOnce([
         {
           l: {
-            language: 'Bulgarian',
-            proficiency: 'beginner',
+            properties: {
+              language: 'Bulgarian',
+              proficiency: 'beginner',
+            },
           },
         },
         {
           l: {
-            language: 'Spanish',
-            proficiency: 'intermediate',
+            properties: {
+              language: 'Spanish',
+              proficiency: 'intermediate',
+            },
           },
         },
       ])

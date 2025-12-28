@@ -61,10 +61,12 @@ describe('Chat Routes', () => {
       mockRunQuery.mockResolvedValueOnce([
         {
           c: {
-            id: 'chat-1',
-            messages: JSON.stringify([{ role: 'assistant', content: 'Hello!', timestamp: '2024-01-01T00:00:00Z' }]),
-            created_at: Date.now(),
-            updated_at: Date.now(),
+            properties: {
+              id: 'chat-1',
+              messages: JSON.stringify([{ role: 'assistant', content: 'Hello!', timestamp: '2024-01-01T00:00:00Z' }]),
+              created_at: Date.now(),
+              updated_at: Date.now(),
+            },
           },
         },
       ])
@@ -91,12 +93,14 @@ describe('Chat Routes', () => {
     it('should return a specific chat', async () => {
       mockRunSingleQuery.mockResolvedValueOnce({
         c: {
-          id: 'chat-1',
-          messages: JSON.stringify([
-            { role: 'assistant', content: 'Hello!', timestamp: '2024-01-01T00:00:00Z' },
-          ]),
-          created_at: Date.now(),
-          updated_at: Date.now(),
+          properties: {
+            id: 'chat-1',
+            messages: JSON.stringify([
+              { role: 'assistant', content: 'Hello!', timestamp: '2024-01-01T00:00:00Z' },
+            ]),
+            created_at: Date.now(),
+            updated_at: Date.now(),
+          },
         },
       })
 
@@ -128,12 +132,16 @@ describe('Chat Routes', () => {
       // Mock user language lookup
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
-          name: 'Test User',
-          native_language: 'French',
+          properties: {
+            name: 'Test User',
+            native_language: 'French',
+          },
         },
         l: {
-          language: 'Bulgarian',
-          proficiency: 'beginner',
+          properties: {
+            language: 'Bulgarian',
+            proficiency: 'beginner',
+          },
         },
       })
 
@@ -168,22 +176,28 @@ describe('Chat Routes', () => {
       // Mock user language lookup
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
-          name: 'Test User',
-          native_language: 'French',
+          properties: {
+            name: 'Test User',
+            native_language: 'French',
+          },
         },
         l: {
-          language: 'Bulgarian',
-          proficiency: 'beginner',
+          properties: {
+            language: 'Bulgarian',
+            proficiency: 'beginner',
+          },
         },
       })
 
       // Mock existing chat lookup
       mockRunSingleQuery.mockResolvedValueOnce({
         c: {
-          id: 'existing-chat',
-          messages: JSON.stringify([
-            { role: 'assistant', content: 'Hello!', timestamp: '2024-01-01T00:00:00Z' },
-          ]),
+          properties: {
+            id: 'existing-chat',
+            messages: JSON.stringify([
+              { role: 'assistant', content: 'Hello!', timestamp: '2024-01-01T00:00:00Z' },
+            ]),
+          },
         },
       })
 
@@ -208,12 +222,16 @@ describe('Chat Routes', () => {
       // Mock user language lookup
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
-          name: 'Test User',
-          native_language: 'French',
+          properties: {
+            name: 'Test User',
+            native_language: 'French',
+          },
         },
         l: {
-          language: 'Bulgarian',
-          proficiency: 'beginner',
+          properties: {
+            language: 'Bulgarian',
+            proficiency: 'beginner',
+          },
         },
       })
 

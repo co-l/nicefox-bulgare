@@ -12,6 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       'nicefox-graphdb/packages/client/src/index.ts': 'nicefox-graphdb/packages/client/src/index.ts',
+      'nicefox-graphdb/packages/server/src/index.js': 'nicefox-graphdb/packages/server/src/index.ts',
     },
   },
 })
