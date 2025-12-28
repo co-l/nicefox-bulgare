@@ -15,7 +15,7 @@ export function setTestClient(client: TestClient | null): void {
 export function getGraph(): NiceFoxGraphDB {
   if (!graph) {
     const url = process.env.GRAPHDB_URL || 'https://graphdb.nicefox.net'
-    const project = process.env.GRAPHDB_PROJECT || 'bulgare'
+    const project = process.env.GRAPHDB_PROJECT || 'nicefox-bulgare'
     const apiKey = process.env.GRAPHDB_API_KEY || ''
     const env = process.env.NODE_ENV === 'production' ? 'production' : 'test'
 

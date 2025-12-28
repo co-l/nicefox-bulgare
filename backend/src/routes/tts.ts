@@ -3,8 +3,27 @@ import { createReadStream } from 'fs'
 import { stat } from 'fs/promises'
 import { runSingleQuery } from '../db.js'
 import { generateAudio, getAudioPath } from '../services/tts.js'
+import { authMiddleware, getLoginUrl } from '../shared/middleware.js'
 
 const router = Router()
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'https://auth.nicefox.net'
+
+const ssoAuth = authMiddleware({
+  jwtSecret: JWT_SECRET,
+  authServiceUrl: AUTH_SERVICE_URL,
+  onUnauthorized: (req: Request, res: Response) => {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5180'
+    const needTokenInUrl = !req.get('host')?.endsWith('.nicefox.net')
+    const tokenParam = needTokenInUrl ? '&token_in_url=true' : ''
+    const loginUrl = getLoginUrl(AUTH_SERVICE_URL, frontendUrl) + tokenParam
+    res.status(401).json({
+      error: 'Unauthorized',
+      loginUrl
+    })
+  },
+})
 
 interface UserLanguageRecord {
   l: {
@@ -43,8 +62,8 @@ router.get('/audio/:id', async (req: Request, res: Response) => {
   }
 })
 
-// Generate audio from text (requires auth - middleware applied in index.ts)
-router.post('/generate', async (req: Request, res: Response) => {
+// Generate audio from text (requires auth)
+router.post('/generate', ssoAuth, async (req: Request, res: Response) => {
   try {
     const { text } = req.body
 

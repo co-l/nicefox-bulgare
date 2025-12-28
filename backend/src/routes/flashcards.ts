@@ -14,7 +14,7 @@ interface FlashcardRecord {
       target: string
       original_word?: string
       part_of_speech?: string
-      forms?: string // JSON stringified
+      forms?: Record<string, string[]> // NiceFox GraphDB auto-parses JSON
     }
   }
   rel: {
@@ -48,7 +48,8 @@ router.get('/', async (req: Request, res: Response) => {
         target: f.target,
         originalWord: f.original_word,
         partOfSpeech: f.part_of_speech,
-        forms: f.forms ? JSON.parse(f.forms) : undefined,
+        // NiceFox GraphDB auto-parses JSON, so forms is already an object
+        forms: f.forms || undefined,
         nextDisplay: new Date(rel.next_display || Date.now()),
         intervalIndex: rel.interval_index || 0,
         status: rel.status || 'new',
@@ -98,7 +99,8 @@ router.get('/session', async (req: Request, res: Response) => {
         target: f.target,
         originalWord: f.original_word,
         partOfSpeech: f.part_of_speech,
-        forms: f.forms ? JSON.parse(f.forms) : undefined,
+        // NiceFox GraphDB auto-parses JSON, so forms is already an object
+        forms: f.forms || undefined,
         nextDisplay: new Date(rel.next_display || Date.now()),
         intervalIndex: rel.interval_index || 0,
         status: rel.status || 'new',

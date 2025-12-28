@@ -59,7 +59,7 @@ app.use('/api/user', ssoAuth, userRoutes)
 app.use('/api/flashcards', ssoAuth, flashcardRoutes)
 app.use('/api/chat', ssoAuth, chatRoutes)
 app.use('/api/translate', ssoAuth, translateRoutes)
-app.use('/api/tts', ssoAuth, ttsRoutes)
+app.use('/api/tts', ttsRoutes)
 app.use('/api/stt', ssoAuth, sttRoutes)
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

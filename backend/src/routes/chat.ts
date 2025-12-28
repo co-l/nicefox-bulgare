@@ -6,11 +6,12 @@ import { generateChatResponse, analyzeGrammar, GrammarAnalysis } from '../servic
 const router = Router()
 
 // NiceFox GraphDB returns node objects with properties nested
+// JSON properties are auto-parsed, so messages is already an array
 interface ChatRecord {
   c: {
     properties: {
       id: string
-      messages: string
+      messages: Message[] // NiceFox GraphDB auto-parses JSON
       created_at: number
       updated_at: number
     }
@@ -51,12 +52,8 @@ router.get('/history', async (req: Request, res: Response) => {
 
     const chats = results.map((r) => {
       const chat = r.c.properties
-      let messages: Message[] = []
-      try {
-        messages = JSON.parse(chat.messages || '[]')
-      } catch {
-        messages = []
-      }
+      // NiceFox GraphDB already parses JSON properties via deepParseJson
+      const messages: Message[] = Array.isArray(chat.messages) ? chat.messages : []
 
       return {
         id: chat.id,
@@ -89,12 +86,8 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 
     const chat = result.c.properties
-    let messages: Message[] = []
-    try {
-      messages = JSON.parse(chat.messages || '[]')
-    } catch {
-      messages = []
-    }
+    // NiceFox GraphDB already parses JSON properties via deepParseJson
+    const messages: Message[] = Array.isArray(chat.messages) ? chat.messages : []
 
     res.json({
       id: chat.id,
@@ -210,12 +203,10 @@ router.post('/', async (req: Request, res: Response) => {
       )
 
       if (existingChat) {
-        try {
-          messages = JSON.parse(existingChat.c.properties.messages || '[]')
-          console.log('Loaded messages count:', messages.length)
-        } catch {
-          messages = []
-        }
+        // NiceFox GraphDB already parses JSON properties via deepParseJson
+        const storedMessages = existingChat.c.properties.messages
+        messages = Array.isArray(storedMessages) ? storedMessages : []
+        console.log('Loaded messages count:', messages.length)
       } else {
         console.log('No existing chat found for id:', chatId)
       }
