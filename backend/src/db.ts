@@ -1,55 +1,45 @@
-import neo4j, { Driver } from 'neo4j-driver'
+// @ts-ignore - nicefox-graphdb is imported from TypeScript source
+import { NiceFoxGraphDB } from 'nicefox-graphdb/packages/client/src/index.ts'
 
-let driver: Driver | null = null
+let graph: NiceFoxGraphDB | null = null
 
-export function getDriver(): Driver {
-  if (!driver) {
-    const uri = process.env.NEO4J_URI || 'bolt://localhost:7687'
-    const user = process.env.NEO4J_USER || 'neo4j'
-    const password = process.env.NEO4J_PASSWORD || ''
+export function getGraph(): NiceFoxGraphDB {
+  if (!graph) {
+    const url = process.env.GRAPHDB_URL || 'https://graphdb.nicefox.net'
+    const project = process.env.GRAPHDB_PROJECT || 'bulgare'
+    const apiKey = process.env.GRAPHDB_API_KEY || ''
+    const env = process.env.NODE_ENV === 'production' ? 'production' : 'test'
 
-    driver = neo4j.driver(uri, neo4j.auth.basic(user, password), {
-      disableLosslessIntegers: true,
-      encrypted: 'ENCRYPTION_OFF',
+    graph = new NiceFoxGraphDB({
+      url,
+      project,
+      env,
+      apiKey,
     })
   }
-  return driver
+  return graph
 }
 
 export async function verifyConnection(): Promise<boolean> {
   try {
-    const session = getDriver().session()
-    try {
-      await session.run('RETURN 1')
-      console.log('Connected to Neo4j')
-      return true
-    } finally {
-      await session.close()
-    }
+    await getGraph().health()
+    console.log('Connected to NiceFox GraphDB')
+    return true
   } catch (error) {
-    console.error('Failed to connect to Neo4j:', error)
+    console.error('Failed to connect to NiceFox GraphDB:', error)
     return false
   }
 }
 
 export async function closeConnection(): Promise<void> {
-  if (driver) {
-    await driver.close()
-    driver = null
-  }
+  graph = null
 }
 
 export async function runQuery<T>(
   cypher: string,
   params: Record<string, unknown> = {}
 ): Promise<T[]> {
-  const session = getDriver().session()
-  try {
-    const result = await session.run(cypher, params)
-    return result.records.map((record) => record.toObject() as T)
-  } finally {
-    await session.close()
-  }
+  return getGraph().query<T>(cypher, params)
 }
 
 export async function runSingleQuery<T>(

@@ -12,15 +12,14 @@ const router = Router()
 
 const invalidatedTokens = new Set<string>()
 
+// NiceFox GraphDB returns flat node objects
 interface UserRecord {
   u: {
-    properties: {
-      id: string
-      email: string
-      name: string
-      password_hash: string
-      native_language?: string
-    }
+    id: string
+    email: string
+    name: string
+    password_hash: string
+    native_language?: string
   }
 }
 
@@ -90,7 +89,7 @@ router.post('/login', async (req: Request, res: Response) => {
       return
     }
 
-    const user = result.u.properties
+    const user = result.u
     const validPassword = await bcrypt.compare(password, user.password_hash)
 
     if (!validPassword) {

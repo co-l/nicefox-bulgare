@@ -8,29 +8,24 @@ const router = Router()
 
 router.use(authMiddleware)
 
+// NiceFox GraphDB returns flat node objects
 interface ChatRecord {
   c: {
-    properties: {
-      id: string
-      messages: string
-      created_at: number
-      updated_at: number
-    }
+    id: string
+    messages: string
+    created_at: number
+    updated_at: number
   }
 }
 
 interface UserLanguageRecord {
   u: {
-    properties: {
-      name: string
-      native_language: string
-    }
+    name: string
+    native_language: string
   }
   l: {
-    properties: {
-      language: string
-      proficiency: string
-    }
+    language: string
+    proficiency: string
   }
 }
 
@@ -54,15 +49,15 @@ router.get('/history', async (req: AuthRequest, res: Response) => {
     const chats = results.map((r) => {
       let messages: Message[] = []
       try {
-        messages = JSON.parse(r.c.properties.messages || '[]')
+        messages = JSON.parse(r.c.messages || '[]')
       } catch {
         messages = []
       }
 
       return {
-        id: r.c.properties.id,
-        createdAt: new Date(r.c.properties.created_at || Date.now()),
-        updatedAt: new Date(r.c.properties.updated_at || Date.now()),
+        id: r.c.id,
+        createdAt: new Date(r.c.created_at || Date.now()),
+        updatedAt: new Date(r.c.updated_at || Date.now()),
         messages: messages.slice(0, 1), // Only first message for preview
       }
     })
@@ -91,16 +86,16 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 
     let messages: Message[] = []
     try {
-      messages = JSON.parse(result.c.properties.messages || '[]')
+      messages = JSON.parse(result.c.messages || '[]')
     } catch {
       messages = []
     }
 
     res.json({
-      id: result.c.properties.id,
+      id: result.c.id,
       messages,
-      createdAt: new Date(result.c.properties.created_at || Date.now()),
-      updatedAt: new Date(result.c.properties.updated_at || Date.now()),
+      createdAt: new Date(result.c.created_at || Date.now()),
+      updatedAt: new Date(result.c.updated_at || Date.now()),
     })
   } catch (error) {
     console.error('Get chat error:', error)
@@ -122,10 +117,10 @@ router.post('/start', async (req: AuthRequest, res: Response) => {
       return
     }
 
-    const userName = userLang.u.properties.name || 'friend'
-    const nativeLanguage = userLang.u.properties.native_language || 'English'
-    const targetLanguage = userLang.l.properties.language
-    const proficiency = userLang.l.properties.proficiency
+    const userName = userLang.u.name || 'friend'
+    const nativeLanguage = userLang.u.native_language || 'English'
+    const targetLanguage = userLang.l.language
+    const proficiency = userLang.l.proficiency
 
     // Generate initial greeting
     const aiResponse = await generateChatResponse(
@@ -190,10 +185,10 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       return
     }
 
-    const userName = userLang.u.properties.name || 'friend'
-    const nativeLanguage = userLang.u.properties.native_language || 'English'
-    const targetLanguage = userLang.l.properties.language
-    const proficiency = userLang.l.properties.proficiency
+    const userName = userLang.u.name || 'friend'
+    const nativeLanguage = userLang.u.native_language || 'English'
+    const targetLanguage = userLang.l.language
+    const proficiency = userLang.l.proficiency
 
     let messages: Message[] = []
     let currentChatId = chatId
@@ -209,7 +204,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
       if (existingChat) {
         try {
-          messages = JSON.parse(existingChat.c.properties.messages || '[]')
+          messages = JSON.parse(existingChat.c.messages || '[]')
           console.log('Loaded messages count:', messages.length)
         } catch {
           messages = []

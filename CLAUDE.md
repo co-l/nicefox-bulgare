@@ -41,9 +41,10 @@ cd backend && npx tsc --noEmit
 
 ### Backend (`backend/src/`)
 - **Express + TypeScript** with ES modules (`.js` extensions in imports)
-- **Neo4j** graph database for all data storage
+- **NiceFox GraphDB** for all data storage (Cypher query language)
 - **JWT auth** with access tokens (15min) and refresh tokens (7 days)
 - Routes: `/api/auth`, `/api/user`, `/api/flashcards`, `/api/chat`
+- Tests: `npm test` runs vitest tests
 
 ### Frontend (`frontend/src/`)
 - **React 18 + TypeScript + Vite**
@@ -51,10 +52,10 @@ cd backend && npx tsc --noEmit
 - **AuthContext** manages auth state and token refresh
 - **ProtectedRoute** component wraps authenticated pages
 
-### Data Model (Neo4j Graph)
+### Data Model (NiceFox GraphDB)
 ```
-(User)-[:LEARNS]->(Language)-[:HAS_FLASHCARD {next_display, interval_index}]->(Flashcard)
-(User)-[:LEARNS]->(Language)-[:HAS_CHAT]->(Chat {messages: JSON})
+(BF_User)-[:BF_LEARNS]->(BF_Language)-[:BF_HAS_FLASHCARD {next_display, interval_index}]->(BF_Flashcard)
+(BF_User)-[:BF_LEARNS]->(BF_Language)-[:BF_HAS_CHAT]->(BF_Chat {messages: JSON})
 ```
 
 ### Spaced Repetition Algorithm
@@ -75,7 +76,7 @@ Located in `backend/src/utils/spacedRepetition.ts`:
 
 ### Backend (`backend/.env`)
 Copy `backend/.env.example` to `backend/.env` and configure:
-- `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` - local Neo4j instance
+- `GRAPHDB_URL`, `GRAPHDB_PROJECT`, `GRAPHDB_API_KEY` - NiceFox GraphDB connection
 - `JWT_SECRET`, `JWT_REFRESH_SECRET` - min 32 chars each
 - `MISTRAL_API_KEY` - for AI chat
 - `FRONTEND_URL` - frontend origin for CORS (e.g., `http://localhost:5180`)

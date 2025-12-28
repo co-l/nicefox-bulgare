@@ -8,23 +8,20 @@ const router = Router()
 
 router.use(authMiddleware)
 
+// NiceFox GraphDB returns flat node/relationship objects
 interface FlashcardRecord {
   f: {
-    properties: {
-      id: string
-      native: string
-      target: string
-      original_word?: string
-      part_of_speech?: string
-      forms?: string // JSON stringified
-    }
+    id: string
+    native: string
+    target: string
+    original_word?: string
+    part_of_speech?: string
+    forms?: string // JSON stringified
   }
   rel: {
-    properties: {
-      next_display: number
-      interval_index: number
-      status: string
-    }
+    next_display: number
+    interval_index: number
+    status: string
   }
 }
 
@@ -42,15 +39,15 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     )
 
     const flashcards = results.map((r) => ({
-      id: r.f.properties.id,
-      native: r.f.properties.native,
-      target: r.f.properties.target,
-      originalWord: r.f.properties.original_word,
-      partOfSpeech: r.f.properties.part_of_speech,
-      forms: r.f.properties.forms ? JSON.parse(r.f.properties.forms) : undefined,
-      nextDisplay: new Date(r.rel.properties.next_display || Date.now()),
-      intervalIndex: r.rel.properties.interval_index || 0,
-      status: r.rel.properties.status || 'new',
+      id: r.f.id,
+      native: r.f.native,
+      target: r.f.target,
+      originalWord: r.f.original_word,
+      partOfSpeech: r.f.part_of_speech,
+      forms: r.f.forms ? JSON.parse(r.f.forms) : undefined,
+      nextDisplay: new Date(r.rel.next_display || Date.now()),
+      intervalIndex: r.rel.interval_index || 0,
+      status: r.rel.status || 'new',
     }))
 
     res.json({ flashcards })
@@ -88,15 +85,15 @@ router.get('/session', async (req: AuthRequest, res: Response) => {
     )
 
     const cards = results.map((r) => ({
-      id: r.f.properties.id,
-      native: r.f.properties.native,
-      target: r.f.properties.target,
-      originalWord: r.f.properties.original_word,
-      partOfSpeech: r.f.properties.part_of_speech,
-      forms: r.f.properties.forms ? JSON.parse(r.f.properties.forms) : undefined,
-      nextDisplay: new Date(r.rel.properties.next_display || Date.now()),
-      intervalIndex: r.rel.properties.interval_index || 0,
-      status: r.rel.properties.status || 'new',
+      id: r.f.id,
+      native: r.f.native,
+      target: r.f.target,
+      originalWord: r.f.original_word,
+      partOfSpeech: r.f.part_of_speech,
+      forms: r.f.forms ? JSON.parse(r.f.forms) : undefined,
+      nextDisplay: new Date(r.rel.next_display || Date.now()),
+      intervalIndex: r.rel.interval_index || 0,
+      status: r.rel.status || 'new',
     }))
 
     res.json({ cards })
@@ -121,12 +118,12 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     // If language not specified, use the first language the user is learning
     let targetLanguage = language
     if (!targetLanguage) {
-      const langResult = await runSingleQuery<{ l: { properties: { language: string } } }>(
+      const langResult = await runSingleQuery<{ l: { language: string } }>(
         `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)
          RETURN l LIMIT 1`,
         { userId: req.userId }
       )
-      targetLanguage = langResult?.l.properties.language
+      targetLanguage = langResult?.l.language
     }
 
     if (!targetLanguage) {
@@ -204,7 +201,7 @@ router.post('/:id/review', async (req: AuthRequest, res: Response) => {
       return
     }
 
-    const currentIntervalIndex = current.rel.properties.interval_index || 0
+    const currentIntervalIndex = current.rel.interval_index || 0
     const result = calculateNextReview(currentIntervalIndex, action)
 
     await runQuery(
