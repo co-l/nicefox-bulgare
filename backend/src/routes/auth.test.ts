@@ -49,9 +49,9 @@ describe('Auth Routes (SSO)', () => {
     it('should return user data when authenticated with valid token', async () => {
       const token = createToken('user-123', 'test@example.com')
       
-      // Mock: no existing user found first, then user created
-      mockRunSingleQuery.mockResolvedValueOnce(null) // ensureUserExists check
-      mockRunQuery.mockResolvedValueOnce([]) // user creation
+      // Mock: ensureUserExists MERGE query
+      mockRunQuery.mockResolvedValueOnce([])
+      // Mock: fetch user data
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
           properties: {
@@ -80,16 +80,9 @@ describe('Auth Routes (SSO)', () => {
     it('should return user data when existing user is found', async () => {
       const token = createToken('user-123', 'test@example.com')
       
-      // Mock: existing user found
-      mockRunSingleQuery.mockResolvedValueOnce({
-        u: {
-          properties: {
-            id: 'user-123',
-            email: 'test@example.com',
-            name: 'Existing User',
-          },
-        },
-      }) // ensureUserExists check - user exists
+      // Mock: ensureUserExists MERGE query (user already exists, no ON CREATE)
+      mockRunQuery.mockResolvedValueOnce([])
+      // Mock: fetch user data
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
           properties: {
@@ -133,9 +126,9 @@ describe('Auth Routes (SSO)', () => {
     it('should accept token via Authorization header in dev mode', async () => {
       const token = createToken('user-123', 'test@example.com')
       
-      mockRunSingleQuery.mockResolvedValueOnce({
-        u: { properties: { id: 'user-123', email: 'test@example.com', name: 'Test User' } },
-      })
+      // Mock: ensureUserExists MERGE query
+      mockRunQuery.mockResolvedValueOnce([])
+      // Mock: fetch user data
       mockRunSingleQuery.mockResolvedValueOnce({
         u: { properties: { id: 'user-123', email: 'test@example.com', name: 'Test User', native_language: null } },
       })

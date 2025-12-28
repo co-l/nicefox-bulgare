@@ -185,8 +185,8 @@ describe('User Routes', () => {
 
   describe('POST /languages', () => {
     it('should add a new language', async () => {
-      mockRunSingleQuery.mockResolvedValueOnce(null) // No existing language
-      mockRunQuery.mockResolvedValueOnce([]) // Creation succeeds
+      // Mock: MERGE creates new language, returns created=true
+      mockRunQuery.mockResolvedValueOnce([{ created: true }])
 
       const app = createApp()
       const res = await request(app)
@@ -199,12 +199,8 @@ describe('User Routes', () => {
     })
 
     it('should return 400 if already learning language', async () => {
-      mockRunSingleQuery.mockResolvedValueOnce({
-        l: {
-          language: 'Bulgarian',
-          proficiency: 'beginner',
-        },
-      })
+      // Mock: MERGE finds existing language, returns created=false
+      mockRunQuery.mockResolvedValueOnce([{ created: false }])
 
       const app = createApp()
       const res = await request(app)

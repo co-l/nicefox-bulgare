@@ -22,26 +22,16 @@ interface UserRecord {
 
 // Ensure user exists in database (SSO users are created on first /me call)
 async function ensureUserExists(authId: string, email: string): Promise<void> {
-  // Check if user already exists with this SSO ID
-  const existing = await runSingleQuery<UserRecord>(
-    'MATCH (u:BF_User {id: $id}) RETURN u',
-    { id: authId }
+  // Use MERGE to avoid race conditions creating duplicate users
+  // Native language defaults to French (app is for French speakers learning Bulgarian)
+  await runQuery(
+    `MERGE (u:BF_User {id: $id})
+     ON CREATE SET u.email = $email,
+                   u.name = $name,
+                   u.native_language = $nativeLanguage,
+                   u.created_at = $createdAt`,
+    { id: authId, email, name: email.split('@')[0], nativeLanguage: 'French', createdAt: Date.now() }
   )
-
-  if (!existing) {
-    // Create new user with SSO ID
-    // Native language defaults to French (app is for French speakers learning Bulgarian)
-    await runQuery(
-      `CREATE (u:BF_User {
-        id: $id,
-        email: $email,
-        name: $name,
-        native_language: $nativeLanguage,
-        created_at: $createdAt
-      })`,
-      { id: authId, email, name: email.split('@')[0], nativeLanguage: 'French', createdAt: Date.now() }
-    )
-  }
 }
 
 // SSO auth middleware for /me endpoint

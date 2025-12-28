@@ -134,26 +134,21 @@ router.post('/languages', async (req: Request, res: Response) => {
       return
     }
 
-    const existing = await runSingleQuery<LanguageRecord>(
-      `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language {language: $language})
-       RETURN l`,
-      { userId: req.authUser!.id, language }
+    // Use MERGE to avoid race conditions creating duplicate languages
+    const result = await runQuery<{ created: boolean }>(
+      `MATCH (u:BF_User {id: $userId})
+       MERGE (u)-[:BF_LEARNS]->(l:BF_Language {language: $language})
+       ON CREATE SET l.proficiency = $proficiency,
+                     l.created_at = $createdAt
+       RETURN l.created_at = $createdAt as created`,
+      { userId: req.authUser!.id, language, proficiency, createdAt: Date.now() }
     )
 
-    if (existing) {
+    // If not created (already existed), return error
+    if (result.length > 0 && !result[0].created) {
       res.status(400).json({ error: 'Already learning this language' })
       return
     }
-
-    await runQuery(
-      `MATCH (u:BF_User {id: $userId})
-       CREATE (u)-[:BF_LEARNS]->(l:BF_Language {
-         language: $language,
-         proficiency: $proficiency,
-         created_at: $createdAt
-       })`,
-      { userId: req.authUser!.id, language, proficiency, createdAt: Date.now() }
-    )
 
     res.status(201).json({ message: 'Language added' })
   } catch (error) {
