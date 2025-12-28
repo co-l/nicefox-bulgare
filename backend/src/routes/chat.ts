@@ -135,19 +135,21 @@ router.post('/start', async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     }]
 
+    const now = Date.now()
     await runQuery(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language {language: $language})
        CREATE (l)-[:BF_HAS_CHAT]->(c:BF_Chat {
          id: $chatId,
          messages: $messages,
-         created_at: timestamp(),
-         updated_at: timestamp()
+         created_at: $now,
+         updated_at: $now
        })`,
       {
         userId: req.authUser!.id,
         language: targetLanguage,
         chatId,
         messages: JSON.stringify(messages),
+        now,
       }
     )
 
@@ -248,6 +250,7 @@ router.post('/', async (req: Request, res: Response) => {
     messages.push(assistantMessage)
 
     // Save chat
+    const now = Date.now()
     if (!currentChatId) {
       currentChatId = uuidv4()
 
@@ -256,24 +259,26 @@ router.post('/', async (req: Request, res: Response) => {
          CREATE (l)-[:BF_HAS_CHAT]->(c:BF_Chat {
            id: $chatId,
            messages: $messages,
-           created_at: timestamp(),
-           updated_at: timestamp()
+           created_at: $now,
+           updated_at: $now
          })`,
         {
           userId: req.authUser!.id,
           language: targetLanguage,
           chatId: currentChatId,
           messages: JSON.stringify(messages),
+          now,
         }
       )
     } else {
       await runQuery(
         `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)-[:BF_HAS_CHAT]->(c:BF_Chat {id: $chatId})
-         SET c.messages = $messages, c.updated_at = timestamp()`,
+         SET c.messages = $messages, c.updated_at = $now`,
         {
           userId: req.authUser!.id,
           chatId: currentChatId,
           messages: JSON.stringify(messages),
+          now,
         }
       )
     }

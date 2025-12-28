@@ -146,9 +146,9 @@ router.post('/languages', async (req: Request, res: Response) => {
        CREATE (u)-[:BF_LEARNS]->(l:BF_Language {
          language: $language,
          proficiency: $proficiency,
-         created_at: timestamp()
+         created_at: $createdAt
        })`,
-      { userId: req.authUser!.id, language, proficiency }
+      { userId: req.authUser!.id, language, proficiency, createdAt: Date.now() }
     )
 
     res.status(201).json({ message: 'Language added' })

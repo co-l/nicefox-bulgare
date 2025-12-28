@@ -141,7 +141,7 @@ router.post('/', async (req: Request, res: Response) => {
          original_word: $originalWord,
          part_of_speech: $partOfSpeech,
          forms: $forms,
-         created_at: timestamp()
+         created_at: $createdAt
        })`,
       {
         userId: req.authUser!.id,
@@ -155,6 +155,7 @@ router.post('/', async (req: Request, res: Response) => {
         nextDisplay: initial.nextDisplay.getTime(),
         intervalIndex: initial.newIntervalIndex,
         status: initial.status,
+        createdAt: Date.now(),
       }
     )
 
@@ -206,13 +207,14 @@ router.post('/:id/review', async (req: Request, res: Response) => {
        SET rel.next_display = $nextDisplay,
            rel.interval_index = $intervalIndex,
            rel.status = $status,
-           f.last_reviewed = timestamp()`,
+           f.last_reviewed = $lastReviewed`,
       {
         userId: req.authUser!.id,
         flashcardId: id,
         nextDisplay: result.nextDisplay.getTime(),
         intervalIndex: result.newIntervalIndex,
         status: result.status,
+        lastReviewed: Date.now(),
       }
     )
 
