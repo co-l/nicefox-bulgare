@@ -40,7 +40,7 @@ A responsive web app that helps users learn languages through **AI-powered conve
 
 ## Technical Stack
 - **Frontend**: React + Bootstrap 5
-- **Backend**: Node.js + Neo4J (graph database for relationships)
+- **Backend**: Node.js + NiceFox GraphDB (graph database for relationships)
 - **AI**:
   - Mistral API (conversation)
   - Whisper (speech-to-text)
@@ -48,23 +48,26 @@ A responsive web app that helps users learn languages through **AI-powered conve
 
 ---
 
-## Data Model (Cypher-like)
+## Data Model (NiceFox GraphDB - Cypher)
 ```cypher
 // Users
-(u:User { id: string, email: string, name: string, native_language: string })
+(u:BF_User { id: string, email: string, name: string, native_language: string })
 
 // Languages
-(u)-[:LEARNS]->(l:Language { language: string, proficiency: string })
+(u)-[:BF_LEARNS]->(l:BF_Language { language: string, proficiency: string })
 
 // Chats
-(l)-[:CHATS]->(c:Chat { date: datetime, content: JSON })
+(l)-[:BF_HAS_CHAT]->(c:BF_Chat { id: string, messages: JSON, created_at: timestamp, updated_at: timestamp })
 
 // Flashcards
-(l)-[:FLASHCARDS { next_display: datetime, status: string }]->(f:Flashcard {
+(l)-[:BF_HAS_FLASHCARD { next_display: timestamp, interval_index: int, status: string }]->(f:BF_Flashcard {
   id: string,
   native: string,
   target: string,
-  last_reviewed: datetime
+  original_word: string,
+  part_of_speech: string,
+  forms: JSON,
+  last_reviewed: timestamp
 })
 ```
 
