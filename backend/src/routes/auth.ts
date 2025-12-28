@@ -33,9 +33,9 @@ async function ensureUserExists(authId: string, email: string): Promise<void> {
         id: $id,
         email: $email,
         name: $name,
-        created_at: timestamp()
+        created_at: $createdAt
       })`,
-      { id: authId, email, name: email.split('@')[0] }
+      { id: authId, email, name: email.split('@')[0], createdAt: Date.now() }
     )
   }
 }
