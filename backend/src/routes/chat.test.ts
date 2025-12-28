@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
+import cookieParser from 'cookie-parser'
+import jwt from 'jsonwebtoken'
+import { authMiddleware } from '../shared/middleware.js'
 
 // Mock the db module
 const mockRunQuery = vi.fn()
@@ -9,15 +12,6 @@ const mockRunSingleQuery = vi.fn()
 vi.mock('../db.js', () => ({
   runQuery: (...args: unknown[]) => mockRunQuery(...args),
   runSingleQuery: (...args: unknown[]) => mockRunSingleQuery(...args),
-}))
-
-// Mock auth middleware
-vi.mock('../middleware/auth.js', () => ({
-  authMiddleware: (req: express.Request, _res: express.Response, next: express.NextFunction) => {
-    (req as { userId?: string }).userId = 'test-user-123'
-    next()
-  },
-  AuthRequest: {},
 }))
 
 // Mock uuid
@@ -38,10 +32,19 @@ vi.mock('../services/mistral.js', () => ({
 
 import chatRouter from './chat.js'
 
+const JWT_SECRET = 'test-secret-for-testing'
+
+// Helper to create a valid JWT token
+function createToken(userId: string, email: string, role: 'user' | 'admin' = 'user') {
+  return jwt.sign({ userId, email, role }, JWT_SECRET, { expiresIn: '15m' })
+}
+
 function createApp() {
   const app = express()
   app.use(express.json())
-  app.use('/api/chat', chatRouter)
+  app.use(cookieParser())
+  const auth = authMiddleware({ jwtSecret: JWT_SECRET })
+  app.use('/api/chat', auth, chatRouter)
   return app
 }
 
@@ -50,9 +53,11 @@ describe('Chat Routes', () => {
     vi.clearAllMocks()
   })
 
+  const validToken = createToken('test-user-123', 'test@example.com')
+
   describe('GET /history', () => {
     it('should return chat history', async () => {
-      // Mock chats found - NiceFox GraphDB format (flat)
+      // Mock chats found
       mockRunQuery.mockResolvedValueOnce([
         {
           c: {
@@ -65,11 +70,20 @@ describe('Chat Routes', () => {
       ])
 
       const app = createApp()
-      const res = await request(app).get('/api/chat/history')
+      const res = await request(app)
+        .get('/api/chat/history')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(200)
       expect(res.body.chats).toHaveLength(1)
       expect(res.body.chats[0]).toHaveProperty('id', 'chat-1')
+    })
+
+    it('should return 401 without authentication', async () => {
+      const app = createApp()
+      const res = await request(app).get('/api/chat/history')
+
+      expect(res.status).toBe(401)
     })
   })
 
@@ -87,7 +101,9 @@ describe('Chat Routes', () => {
       })
 
       const app = createApp()
-      const res = await request(app).get('/api/chat/chat-1')
+      const res = await request(app)
+        .get('/api/chat/chat-1')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(200)
       expect(res.body.id).toBe('chat-1')
@@ -98,7 +114,9 @@ describe('Chat Routes', () => {
       mockRunSingleQuery.mockResolvedValueOnce(null)
 
       const app = createApp()
-      const res = await request(app).get('/api/chat/nonexistent')
+      const res = await request(app)
+        .get('/api/chat/nonexistent')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(404)
       expect(res.body.error).toBe('Chat not found')
@@ -123,7 +141,9 @@ describe('Chat Routes', () => {
       mockRunQuery.mockResolvedValueOnce([])
 
       const app = createApp()
-      const res = await request(app).post('/api/chat/start')
+      const res = await request(app)
+        .post('/api/chat/start')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(200)
       expect(res.body).toHaveProperty('chatId', 'test-chat-uuid')
@@ -134,7 +154,9 @@ describe('Chat Routes', () => {
       mockRunSingleQuery.mockResolvedValueOnce(null)
 
       const app = createApp()
-      const res = await request(app).post('/api/chat/start')
+      const res = await request(app)
+        .post('/api/chat/start')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(400)
       expect(res.body.error).toBe('No target language set. Please complete onboarding.')
@@ -171,6 +193,7 @@ describe('Chat Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/chat')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({
           chatId: 'existing-chat',
           message: 'Zdravei!',
@@ -200,6 +223,7 @@ describe('Chat Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/chat')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({
           message: 'Zdravei!',
         })
@@ -212,6 +236,7 @@ describe('Chat Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/chat')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({})
 
       expect(res.status).toBe(400)
@@ -224,6 +249,7 @@ describe('Chat Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/chat')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ message: 'Hello' })
 
       expect(res.status).toBe(400)

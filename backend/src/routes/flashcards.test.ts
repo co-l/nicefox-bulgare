@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
+import cookieParser from 'cookie-parser'
+import jwt from 'jsonwebtoken'
+import { authMiddleware } from '../shared/middleware.js'
 
 // Mock the db module
 const mockRunQuery = vi.fn()
@@ -9,15 +12,6 @@ const mockRunSingleQuery = vi.fn()
 vi.mock('../db.js', () => ({
   runQuery: (...args: unknown[]) => mockRunQuery(...args),
   runSingleQuery: (...args: unknown[]) => mockRunSingleQuery(...args),
-}))
-
-// Mock auth middleware
-vi.mock('../middleware/auth.js', () => ({
-  authMiddleware: (req: express.Request, _res: express.Response, next: express.NextFunction) => {
-    (req as { userId?: string }).userId = 'test-user-123'
-    next()
-  },
-  AuthRequest: {},
 }))
 
 // Mock uuid
@@ -57,10 +51,19 @@ vi.mock('../utils/spacedRepetition.js', () => ({
 
 import flashcardsRouter from './flashcards.js'
 
+const JWT_SECRET = 'test-secret-for-testing'
+
+// Helper to create a valid JWT token
+function createToken(userId: string, email: string, role: 'user' | 'admin' = 'user') {
+  return jwt.sign({ userId, email, role }, JWT_SECRET, { expiresIn: '15m' })
+}
+
 function createApp() {
   const app = express()
   app.use(express.json())
-  app.use('/api/flashcards', flashcardsRouter)
+  app.use(cookieParser())
+  const auth = authMiddleware({ jwtSecret: JWT_SECRET })
+  app.use('/api/flashcards', auth, flashcardsRouter)
   return app
 }
 
@@ -69,9 +72,11 @@ describe('Flashcards Routes', () => {
     vi.clearAllMocks()
   })
 
+  const validToken = createToken('test-user-123', 'test@example.com')
+
   describe('GET /', () => {
     it('should return all flashcards', async () => {
-      // Mock flashcards found - NiceFox GraphDB format (flat)
+      // Mock flashcards found
       mockRunQuery.mockResolvedValueOnce([
         {
           f: {
@@ -91,7 +96,9 @@ describe('Flashcards Routes', () => {
       ])
 
       const app = createApp()
-      const res = await request(app).get('/api/flashcards')
+      const res = await request(app)
+        .get('/api/flashcards')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(200)
       expect(res.body.flashcards).toHaveLength(1)
@@ -105,6 +112,13 @@ describe('Flashcards Routes', () => {
         status: 'learning',
       })
     })
+
+    it('should return 401 without authentication', async () => {
+      const app = createApp()
+      const res = await request(app).get('/api/flashcards')
+
+      expect(res.status).toBe(401)
+    })
   })
 
   describe('GET /due-count', () => {
@@ -112,7 +126,9 @@ describe('Flashcards Routes', () => {
       mockRunSingleQuery.mockResolvedValueOnce({ count: 5 })
 
       const app = createApp()
-      const res = await request(app).get('/api/flashcards/due-count')
+      const res = await request(app)
+        .get('/api/flashcards/due-count')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(200)
       expect(res.body.count).toBe(5)
@@ -122,7 +138,9 @@ describe('Flashcards Routes', () => {
       mockRunSingleQuery.mockResolvedValueOnce(null)
 
       const app = createApp()
-      const res = await request(app).get('/api/flashcards/due-count')
+      const res = await request(app)
+        .get('/api/flashcards/due-count')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(200)
       expect(res.body.count).toBe(0)
@@ -147,7 +165,9 @@ describe('Flashcards Routes', () => {
       ])
 
       const app = createApp()
-      const res = await request(app).get('/api/flashcards/session')
+      const res = await request(app)
+        .get('/api/flashcards/session')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(200)
       expect(res.body.cards).toHaveLength(1)
@@ -166,6 +186,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/flashcards')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({
           native: 'bonjour',
           target: 'zdravei',
@@ -185,6 +206,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/flashcards')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ native: 'bonjour' })
 
       expect(res.status).toBe(400)
@@ -197,6 +219,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/flashcards')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ native: 'bonjour', target: 'zdravei' })
 
       expect(res.status).toBe(400)
@@ -217,6 +240,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/flashcards/fc-1/review')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ action: 'easy' })
 
       expect(res.status).toBe(200)
@@ -232,6 +256,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/flashcards/fc-nonexistent/review')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ action: 'easy' })
 
       expect(res.status).toBe(404)
@@ -242,6 +267,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/flashcards/fc-1/review')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ action: 'invalid' })
 
       expect(res.status).toBe(400)
@@ -254,7 +280,9 @@ describe('Flashcards Routes', () => {
       mockRunQuery.mockResolvedValueOnce([])
 
       const app = createApp()
-      const res = await request(app).delete('/api/flashcards/fc-1')
+      const res = await request(app)
+        .delete('/api/flashcards/fc-1')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(200)
       expect(res.body.message).toBe('Flashcard deleted')

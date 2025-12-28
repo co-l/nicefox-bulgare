@@ -1,10 +1,7 @@
-import { Router, Response } from 'express'
-import { authMiddleware, AuthRequest } from '../middleware/auth.js'
+import { Router, Request, Response } from 'express'
 import { runQuery, runSingleQuery } from '../db.js'
 
 const router = Router()
-
-router.use(authMiddleware)
 
 // NiceFox GraphDB returns flat node objects
 interface UserRecord {
@@ -23,11 +20,11 @@ interface LanguageRecord {
   }
 }
 
-router.get('/profile', async (req: AuthRequest, res: Response) => {
+router.get('/profile', async (req: Request, res: Response) => {
   try {
     const result = await runSingleQuery<UserRecord>(
       'MATCH (u:BF_User {id: $userId}) RETURN u',
-      { userId: req.userId }
+      { userId: req.authUser!.id }
     )
 
     if (!result) {
@@ -41,7 +38,7 @@ router.get('/profile', async (req: AuthRequest, res: Response) => {
     const langResults = await runQuery<LanguageRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)
        RETURN l`,
-      { userId: req.userId }
+      { userId: req.authUser!.id }
     )
 
     const languages = langResults.map((r) => ({
@@ -64,12 +61,12 @@ router.get('/profile', async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.put('/profile', async (req: AuthRequest, res: Response) => {
+router.put('/profile', async (req: Request, res: Response) => {
   try {
     const { name, nativeLanguage } = req.body
 
     const updates: string[] = []
-    const params: Record<string, unknown> = { userId: req.userId }
+    const params: Record<string, unknown> = { userId: req.authUser!.id }
 
     if (name !== undefined) {
       updates.push('u.name = $name')
@@ -98,12 +95,12 @@ router.put('/profile', async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.get('/languages', async (req: AuthRequest, res: Response) => {
+router.get('/languages', async (req: Request, res: Response) => {
   try {
     const results = await runQuery<LanguageRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)
        RETURN l`,
-      { userId: req.userId }
+      { userId: req.authUser!.id }
     )
 
     const languages = results.map((r) => ({
@@ -118,7 +115,7 @@ router.get('/languages', async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.post('/languages', async (req: AuthRequest, res: Response) => {
+router.post('/languages', async (req: Request, res: Response) => {
   try {
     const { language, proficiency } = req.body
 
@@ -136,7 +133,7 @@ router.post('/languages', async (req: AuthRequest, res: Response) => {
     const existing = await runSingleQuery<LanguageRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language {language: $language})
        RETURN l`,
-      { userId: req.userId, language }
+      { userId: req.authUser!.id, language }
     )
 
     if (existing) {
@@ -151,7 +148,7 @@ router.post('/languages', async (req: AuthRequest, res: Response) => {
          proficiency: $proficiency,
          created_at: timestamp()
        })`,
-      { userId: req.userId, language, proficiency }
+      { userId: req.authUser!.id, language, proficiency }
     )
 
     res.status(201).json({ message: 'Language added' })
@@ -161,7 +158,7 @@ router.post('/languages', async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.put('/languages/:language', async (req: AuthRequest, res: Response) => {
+router.put('/languages/:language', async (req: Request, res: Response) => {
   try {
     const { language } = req.params
     const { proficiency } = req.body
@@ -175,7 +172,7 @@ router.put('/languages/:language', async (req: AuthRequest, res: Response) => {
     await runQuery(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language {language: $language})
        SET l.proficiency = $proficiency`,
-      { userId: req.userId, language, proficiency }
+      { userId: req.authUser!.id, language, proficiency }
     )
 
     res.json({ message: 'Language updated' })

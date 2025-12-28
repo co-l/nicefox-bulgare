@@ -1,11 +1,8 @@
-import { Router, Response } from 'express'
+import { Router, Request, Response } from 'express'
 import { Mistral } from '@mistralai/mistralai'
-import { authMiddleware, AuthRequest } from '../middleware/auth.js'
 import { runSingleQuery } from '../db.js'
 
 const router = Router()
-
-router.use(authMiddleware)
 
 let mistralClient: Mistral | null = null
 
@@ -69,7 +66,7 @@ interface TranslationResponse {
   grammaticalForms?: GrammaticalForms
 }
 
-router.post('/', async (req: AuthRequest, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { word, context } = req.body
 
@@ -82,7 +79,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     const userLang = await runSingleQuery<UserLanguageRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)
        RETURN u, l LIMIT 1`,
-      { userId: req.userId }
+      { userId: req.authUser!.id }
     )
 
     if (!userLang) {
@@ -168,7 +165,7 @@ Respond with valid JSON only, no markdown.`
 })
 
 // Reverse translation: native language -> target language with forms
-router.post('/reverse', async (req: AuthRequest, res: Response) => {
+router.post('/reverse', async (req: Request, res: Response) => {
   try {
     const { word, nativeLanguage, targetLanguage } = req.body
 

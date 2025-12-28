@@ -1,6 +1,5 @@
-import { Router, Response } from 'express'
+import { Router, Request, Response } from 'express'
 import multer from 'multer'
-import { authMiddleware, AuthRequest } from '../middleware/auth.js'
 import { runSingleQuery } from '../db.js'
 import { transcribeAudio } from '../services/stt.js'
 
@@ -22,8 +21,8 @@ interface UserLanguageRecord {
   }
 }
 
-// Transcribe audio (requires auth)
-router.post('/transcribe', authMiddleware, upload.single('audio'), async (req: AuthRequest, res: Response) => {
+// Transcribe audio (requires auth - middleware applied in index.ts)
+router.post('/transcribe', upload.single('audio'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       res.status(400).json({ error: 'No audio file provided' })
@@ -34,7 +33,7 @@ router.post('/transcribe', authMiddleware, upload.single('audio'), async (req: A
     const userLang = await runSingleQuery<UserLanguageRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)
        RETURN l LIMIT 1`,
-      { userId: req.userId }
+      { userId: req.authUser!.id }
     )
 
     const language = userLang?.l.properties.language || 'english'

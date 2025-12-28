@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { createReadStream } from 'fs'
 import { stat } from 'fs/promises'
-import { authMiddleware, AuthRequest } from '../middleware/auth.js'
 import { runSingleQuery } from '../db.js'
 import { generateAudio, getAudioPath } from '../services/tts.js'
 
@@ -44,8 +43,8 @@ router.get('/audio/:id', async (req: Request, res: Response) => {
   }
 })
 
-// Generate audio from text (requires auth)
-router.post('/generate', authMiddleware, async (req: AuthRequest, res: Response) => {
+// Generate audio from text (requires auth - middleware applied in index.ts)
+router.post('/generate', async (req: Request, res: Response) => {
   try {
     const { text } = req.body
 
@@ -59,13 +58,13 @@ router.post('/generate', authMiddleware, async (req: AuthRequest, res: Response)
       return
     }
 
-    console.log(`[TTS] Generate request from user ${req.userId}`)
+    console.log(`[TTS] Generate request from user ${req.authUser!.id}`)
 
     // Get user's target language
     const userLang = await runSingleQuery<UserLanguageRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)
        RETURN l LIMIT 1`,
-      { userId: req.userId }
+      { userId: req.authUser!.id }
     )
 
     const language = userLang?.l.properties.language || 'english'

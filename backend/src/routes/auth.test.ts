@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
+import cookieParser from 'cookie-parser'
+import jwt from 'jsonwebtoken'
+
+const JWT_SECRET = 'test-secret-for-testing'
+
+// Set environment BEFORE importing modules that use them
+process.env.JWT_SECRET = JWT_SECRET
+process.env.NODE_ENV = 'test'
 
 // Mock the db module
 const mockRunQuery = vi.fn()
@@ -11,140 +19,54 @@ vi.mock('../db.js', () => ({
   runSingleQuery: (...args: unknown[]) => mockRunSingleQuery(...args),
 }))
 
-// Mock bcrypt
-vi.mock('bcrypt', () => ({
-  default: {
-    hash: vi.fn().mockResolvedValue('hashed_password'),
-    compare: vi.fn().mockImplementation((password: string, hash: string) => {
-      return Promise.resolve(password === 'correctpassword')
-    }),
-  },
-}))
-
 // Mock uuid
 vi.mock('uuid', () => ({
   v4: vi.fn().mockReturnValue('test-uuid-1234'),
 }))
 
-// Mock JWT functions
-vi.mock('../middleware/auth.js', () => ({
-  generateAccessToken: vi.fn().mockReturnValue('mock-access-token'),
-  generateRefreshToken: vi.fn().mockReturnValue('mock-refresh-token'),
-  verifyRefreshToken: vi.fn().mockImplementation((token: string) => {
-    if (token === 'valid-refresh-token') {
-      return { userId: 'user-123' }
-    }
-    throw new Error('Invalid token')
-  }),
-}))
+// Import after setting env and mocks
+const { default: authRouter } = await import('./auth.js')
 
-import authRouter from './auth.js'
+// Helper to create a valid JWT token
+function createToken(userId: string, email: string, role: 'user' | 'admin' = 'user') {
+  return jwt.sign({ userId, email, role }, JWT_SECRET, { expiresIn: '15m' })
+}
 
 function createApp() {
   const app = express()
   app.use(express.json())
+  app.use(cookieParser())
   app.use('/api/auth', authRouter)
   return app
 }
 
-describe('Auth Routes', () => {
+describe('Auth Routes (SSO)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  describe('POST /register', () => {
-    it('should register a new user successfully', async () => {
-      // Mock: no existing user found
-      mockRunSingleQuery.mockResolvedValueOnce(null)
-      // Mock: user creation succeeds
-      mockRunQuery.mockResolvedValueOnce([])
-
-      const app = createApp()
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send({
-          email: 'test@example.com',
-          password: 'password123',
-          name: 'Test User',
-        })
-
-      expect(res.status).toBe(201)
-      expect(res.body).toHaveProperty('accessToken', 'mock-access-token')
-      expect(res.body).toHaveProperty('refreshToken', 'mock-refresh-token')
-      expect(res.body.user).toEqual({
-        id: 'test-uuid-1234',
-        email: 'test@example.com',
-        name: 'Test User',
-        nativeLanguage: null,
-      })
-
-      // Verify the query was called with correct params
-      expect(mockRunSingleQuery).toHaveBeenCalledWith(
-        'MATCH (u:BF_User {email: $email}) RETURN u',
-        { email: 'test@example.com' }
-      )
-    })
-
-    it('should return 400 if email already exists', async () => {
-      // Mock: existing user found - NiceFox GraphDB format (flat)
-      mockRunSingleQuery.mockResolvedValueOnce({
-        u: {
-          id: 'existing-user',
-          email: 'test@example.com',
-          name: 'Existing User',
-        },
-      })
-
-      const app = createApp()
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send({
-          email: 'test@example.com',
-          password: 'password123',
-          name: 'Test User',
-        })
-
-      expect(res.status).toBe(400)
-      expect(res.body.error).toBe('Email already registered')
-    })
-
-    it('should return 400 if required fields are missing', async () => {
-      const app = createApp()
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send({
-          email: 'test@example.com',
-        })
-
-      expect(res.status).toBe(400)
-      expect(res.body.error).toBe('Email, password, and name are required')
-    })
-  })
-
-  describe('POST /login', () => {
-    it('should login successfully with correct credentials', async () => {
-      // Mock: user found - NiceFox GraphDB format (flat)
+  describe('GET /me', () => {
+    it('should return user data when authenticated with valid token', async () => {
+      const token = createToken('user-123', 'test@example.com')
+      
+      // Mock: no existing user found first, then user created
+      mockRunSingleQuery.mockResolvedValueOnce(null) // ensureUserExists check
+      mockRunQuery.mockResolvedValueOnce([]) // user creation
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
           id: 'user-123',
           email: 'test@example.com',
           name: 'Test User',
-          password_hash: 'hashed_password',
           native_language: 'French',
         },
       })
 
       const app = createApp()
       const res = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'test@example.com',
-          password: 'correctpassword',
-        })
+        .get('/api/auth/me')
+        .set('Cookie', [`auth_token=${token}`])
 
       expect(res.status).toBe(200)
-      expect(res.body).toHaveProperty('accessToken', 'mock-access-token')
-      expect(res.body).toHaveProperty('refreshToken', 'mock-refresh-token')
       expect(res.body.user).toEqual({
         id: 'user-123',
         email: 'test@example.com',
@@ -153,106 +75,76 @@ describe('Auth Routes', () => {
       })
     })
 
-    it('should return 401 if user not found', async () => {
-      mockRunSingleQuery.mockResolvedValueOnce(null)
-
-      const app = createApp()
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'nonexistent@example.com',
-          password: 'password123',
-        })
-
-      expect(res.status).toBe(401)
-      expect(res.body.error).toBe('Invalid credentials')
-    })
-
-    it('should return 401 if password is incorrect', async () => {
+    it('should return user data when existing user is found', async () => {
+      const token = createToken('user-123', 'test@example.com')
+      
+      // Mock: existing user found
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
           id: 'user-123',
           email: 'test@example.com',
-          name: 'Test User',
-          password_hash: 'hashed_password',
+          name: 'Existing User',
+        },
+      }) // ensureUserExists check - user exists
+      mockRunSingleQuery.mockResolvedValueOnce({
+        u: {
+          id: 'user-123',
+          email: 'test@example.com',
+          name: 'Existing User',
+          native_language: null,
         },
       })
 
       const app = createApp()
       const res = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'test@example.com',
-          password: 'wrongpassword',
-        })
-
-      expect(res.status).toBe(401)
-      expect(res.body.error).toBe('Invalid credentials')
-    })
-
-    it('should return 400 if required fields are missing', async () => {
-      const app = createApp()
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'test@example.com',
-        })
-
-      expect(res.status).toBe(400)
-      expect(res.body.error).toBe('Email and password are required')
-    })
-  })
-
-  describe('POST /refresh', () => {
-    it('should refresh access token with valid refresh token', async () => {
-      const app = createApp()
-      const res = await request(app)
-        .post('/api/auth/refresh')
-        .send({
-          refreshToken: 'valid-refresh-token',
-        })
+        .get('/api/auth/me')
+        .set('Cookie', [`auth_token=${token}`])
 
       expect(res.status).toBe(200)
-      expect(res.body).toHaveProperty('accessToken', 'mock-access-token')
+      expect(res.body.user.name).toBe('Existing User')
     })
 
-    it('should return 401 with invalid refresh token', async () => {
+    it('should return 401 when no token provided', async () => {
       const app = createApp()
       const res = await request(app)
-        .post('/api/auth/refresh')
-        .send({
-          refreshToken: 'invalid-refresh-token',
-        })
+        .get('/api/auth/me')
 
       expect(res.status).toBe(401)
-      expect(res.body.error).toBe('Invalid refresh token')
+      expect(res.body.error).toBe('Unauthorized')
+      expect(res.body).toHaveProperty('loginUrl')
     })
 
-    it('should return 400 if refresh token is missing', async () => {
+    it('should return 401 when invalid token provided', async () => {
       const app = createApp()
       const res = await request(app)
-        .post('/api/auth/refresh')
-        .send({})
+        .get('/api/auth/me')
+        .set('Cookie', ['auth_token=invalid-token'])
 
-      expect(res.status).toBe(400)
-      expect(res.body.error).toBe('Refresh token required')
+      expect(res.status).toBe(401)
+      expect(res.body.error).toBe('Unauthorized')
+    })
+
+    it('should accept token via Authorization header in dev mode', async () => {
+      const token = createToken('user-123', 'test@example.com')
+      
+      mockRunSingleQuery.mockResolvedValueOnce({
+        u: { id: 'user-123', email: 'test@example.com', name: 'Test User' },
+      })
+      mockRunSingleQuery.mockResolvedValueOnce({
+        u: { id: 'user-123', email: 'test@example.com', name: 'Test User', native_language: null },
+      })
+
+      const app = createApp()
+      const res = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${token}`)
+
+      expect(res.status).toBe(200)
     })
   })
 
   describe('POST /logout', () => {
-    it('should logout successfully', async () => {
-      const app = createApp()
-      const res = await request(app)
-        .post('/api/auth/logout')
-        .send({
-          refreshToken: 'some-refresh-token',
-        })
-
-      expect(res.status).toBe(200)
-      expect(res.body.message).toBe('Logged out successfully')
-    })
-
-    it('should logout even without refresh token', async () => {
+    it('should return logout URL', async () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/auth/logout')
@@ -260,6 +152,8 @@ describe('Auth Routes', () => {
 
       expect(res.status).toBe(200)
       expect(res.body.message).toBe('Logged out successfully')
+      expect(res.body).toHaveProperty('logoutUrl')
+      expect(res.body.logoutUrl).toContain('auth.nicefox.net')
     })
   })
 })

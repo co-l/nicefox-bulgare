@@ -1,12 +1,9 @@
-import { Router, Response } from 'express'
+import { Router, Request, Response } from 'express'
 import { v4 as uuidv4 } from 'uuid'
-import { authMiddleware, AuthRequest } from '../middleware/auth.js'
 import { runQuery, runSingleQuery } from '../db.js'
 import { generateChatResponse, analyzeGrammar, GrammarAnalysis } from '../services/mistral.js'
 
 const router = Router()
-
-router.use(authMiddleware)
 
 // NiceFox GraphDB returns flat node objects
 interface ChatRecord {
@@ -36,14 +33,14 @@ interface Message {
   grammar?: GrammarAnalysis
 }
 
-router.get('/history', async (req: AuthRequest, res: Response) => {
+router.get('/history', async (req: Request, res: Response) => {
   try {
     const results = await runQuery<ChatRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)-[:BF_HAS_CHAT]->(c:BF_Chat)
        RETURN c
        ORDER BY c.updated_at DESC
        LIMIT 20`,
-      { userId: req.userId }
+      { userId: req.authUser!.id }
     )
 
     const chats = results.map((r) => {
@@ -69,14 +66,14 @@ router.get('/history', async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.get('/:id', async (req: AuthRequest, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params
 
     const result = await runSingleQuery<ChatRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)-[:BF_HAS_CHAT]->(c:BF_Chat {id: $chatId})
        RETURN c`,
-      { userId: req.userId, chatId: id }
+      { userId: req.authUser!.id, chatId: id }
     )
 
     if (!result) {
@@ -103,13 +100,13 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.post('/start', async (req: AuthRequest, res: Response) => {
+router.post('/start', async (req: Request, res: Response) => {
   try {
     // Get user's language settings
     const userLang = await runSingleQuery<UserLanguageRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)
        RETURN u, l LIMIT 1`,
-      { userId: req.userId }
+      { userId: req.authUser!.id }
     )
 
     if (!userLang) {
@@ -147,7 +144,7 @@ router.post('/start', async (req: AuthRequest, res: Response) => {
          updated_at: timestamp()
        })`,
       {
-        userId: req.userId,
+        userId: req.authUser!.id,
         language: targetLanguage,
         chatId,
         messages: JSON.stringify(messages),
@@ -164,7 +161,7 @@ router.post('/start', async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.post('/', async (req: AuthRequest, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { chatId, message } = req.body
 
@@ -177,7 +174,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     const userLang = await runSingleQuery<UserLanguageRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)
        RETURN u, l LIMIT 1`,
-      { userId: req.userId }
+      { userId: req.authUser!.id }
     )
 
     if (!userLang) {
@@ -199,7 +196,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       const existingChat = await runSingleQuery<ChatRecord>(
         `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)-[:BF_HAS_CHAT]->(c:BF_Chat {id: $chatId})
          RETURN c`,
-        { userId: req.userId, chatId }
+        { userId: req.authUser!.id, chatId }
       )
 
       if (existingChat) {
@@ -263,7 +260,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
            updated_at: timestamp()
          })`,
         {
-          userId: req.userId,
+          userId: req.authUser!.id,
           language: targetLanguage,
           chatId: currentChatId,
           messages: JSON.stringify(messages),
@@ -274,7 +271,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)-[:BF_HAS_CHAT]->(c:BF_Chat {id: $chatId})
          SET c.messages = $messages, c.updated_at = timestamp()`,
         {
-          userId: req.userId,
+          userId: req.authUser!.id,
           chatId: currentChatId,
           messages: JSON.stringify(messages),
         }

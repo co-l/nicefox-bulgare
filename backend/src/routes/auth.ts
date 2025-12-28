@@ -1,16 +1,12 @@
 import { Router, Request, Response } from 'express'
-import bcrypt from 'bcrypt'
-import { v4 as uuidv4 } from 'uuid'
 import { runQuery, runSingleQuery } from '../db.js'
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-} from '../middleware/auth.js'
+import { authMiddleware, getLoginUrl } from '../shared/middleware.js'
+import { v4 as uuidv4 } from 'uuid'
 
 const router = Router()
 
-const invalidatedTokens = new Set<string>()
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'https://auth.nicefox.net'
 
 // NiceFox GraphDB returns flat node objects
 interface UserRecord {
@@ -18,91 +14,69 @@ interface UserRecord {
     id: string
     email: string
     name: string
-    password_hash: string
     native_language?: string
   }
 }
 
-router.post('/register', async (req: Request, res: Response) => {
-  try {
-    const { email, password, name } = req.body
+// Ensure user exists in database (SSO users are created on first /me call)
+async function ensureUserExists(authId: string, email: string): Promise<void> {
+  // Check if user already exists with this SSO ID
+  const existing = await runSingleQuery<UserRecord>(
+    'MATCH (u:BF_User {id: $id}) RETURN u',
+    { id: authId }
+  )
 
-    if (!email || !password || !name) {
-      res.status(400).json({ error: 'Email, password, and name are required' })
-      return
-    }
-
-    const existing = await runSingleQuery<UserRecord>(
-      'MATCH (u:BF_User {email: $email}) RETURN u',
-      { email }
-    )
-
-    if (existing) {
-      res.status(400).json({ error: 'Email already registered' })
-      return
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10)
-    const userId = uuidv4()
-
+  if (!existing) {
+    // Create new user with SSO ID
     await runQuery(
       `CREATE (u:BF_User {
         id: $id,
         email: $email,
-        password_hash: $passwordHash,
         name: $name,
         created_at: timestamp()
       })`,
-      { id: userId, email, passwordHash, name }
+      { id: authId, email, name: email.split('@')[0] }
     )
-
-    const accessToken = generateAccessToken(userId)
-    const refreshToken = generateRefreshToken(userId)
-
-    res.status(201).json({
-      accessToken,
-      refreshToken,
-      user: { id: userId, email, name, nativeLanguage: null },
-    })
-  } catch (error) {
-    console.error('Registration error:', error)
-    res.status(500).json({ error: 'Registration failed' })
   }
+}
+
+// SSO auth middleware for /me endpoint
+const ssoAuth = authMiddleware({
+  jwtSecret: JWT_SECRET,
+  authServiceUrl: AUTH_SERVICE_URL,
+  onUnauthorized: (req: Request, res: Response) => {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5180'
+    // Add token_in_url=true for non-.nicefox.net domains (dev mode)
+    const needTokenInUrl = !req.get('host')?.endsWith('.nicefox.net')
+    const tokenParam = needTokenInUrl ? '&token_in_url=true' : ''
+    const loginUrl = getLoginUrl(AUTH_SERVICE_URL, frontendUrl) + tokenParam
+    res.status(401).json({
+      error: 'Unauthorized',
+      loginUrl
+    })
+  },
 })
 
-router.post('/login', async (req: Request, res: Response) => {
+// Check current auth status - used by frontend to verify SSO cookie
+// Also ensures user node exists in database on first login
+router.get('/me', ssoAuth, async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body
+    // Ensure user exists in database (SSO users are created on first /me call)
+    await ensureUserExists(req.authUser!.id, req.authUser!.email)
 
-    if (!email || !password) {
-      res.status(400).json({ error: 'Email and password are required' })
-      return
-    }
-
+    // Fetch user data from database to get full profile (name, etc.)
     const result = await runSingleQuery<UserRecord>(
-      'MATCH (u:BF_User {email: $email}) RETURN u',
-      { email }
+      'MATCH (u:BF_User {id: $id}) RETURN u',
+      { id: req.authUser!.id }
     )
 
     if (!result) {
-      res.status(401).json({ error: 'Invalid credentials' })
+      res.status(500).json({ error: 'Failed to fetch user data' })
       return
     }
 
     const user = result.u
-    const validPassword = await bcrypt.compare(password, user.password_hash)
-
-    if (!validPassword) {
-      res.status(401).json({ error: 'Invalid credentials' })
-      return
-    }
-
-    const accessToken = generateAccessToken(user.id)
-    const refreshToken = generateRefreshToken(user.id)
-
     res.json({
-      accessToken,
-      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -111,46 +85,21 @@ router.post('/login', async (req: Request, res: Response) => {
       },
     })
   } catch (error) {
-    console.error('Login error:', error)
-    res.status(500).json({ error: 'Login failed' })
+    console.error('Error in /auth/me - ensureUserExists failed for user:', req.authUser!.id, req.authUser!.email)
+    console.error('Error details:', error)
+    res.status(500).json({ error: 'Failed to sync user to database' })
   }
 })
 
-router.post('/refresh', async (req: Request, res: Response) => {
-  try {
-    const { refreshToken } = req.body
-
-    if (!refreshToken) {
-      res.status(400).json({ error: 'Refresh token required' })
-      return
-    }
-
-    if (invalidatedTokens.has(refreshToken)) {
-      res.status(401).json({ error: 'Token has been invalidated' })
-      return
-    }
-
-    const decoded = verifyRefreshToken(refreshToken)
-    const accessToken = generateAccessToken(decoded.userId)
-
-    res.json({ accessToken })
-  } catch {
-    res.status(401).json({ error: 'Invalid refresh token' })
-  }
-})
-
-router.post('/logout', async (req: Request, res: Response) => {
-  try {
-    const { refreshToken } = req.body
-
-    if (refreshToken) {
-      invalidatedTokens.add(refreshToken)
-    }
-
-    res.json({ message: 'Logged out successfully' })
-  } catch {
-    res.status(500).json({ error: 'Logout failed' })
-  }
+// Logout - clears any local state (SSO cookie is managed by auth.nicefox.net)
+router.post('/logout', (_req: Request, res: Response) => {
+  // The actual auth cookie is httpOnly on .nicefox.net domain
+  // We can't clear it from here, but we can redirect to SSO logout if needed
+  res.json({
+    message: 'Logged out successfully',
+    // Frontend can redirect here if full logout is needed
+    logoutUrl: `${AUTH_SERVICE_URL}/logout`,
+  })
 })
 
 export default router

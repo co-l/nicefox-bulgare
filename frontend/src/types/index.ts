@@ -2,7 +2,16 @@ export interface User {
   id: string
   email: string
   name: string
-  nativeLanguage: string
+  nativeLanguage: string | null
+}
+
+// SSO Auth context - cookie-based authentication via auth.nicefox.net
+export interface AuthContextType {
+  user: User | null
+  isLoading: boolean
+  authError: string | null // Server error during auth check (not 401)
+  logout: () => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
 export interface Language {
@@ -76,10 +85,7 @@ export interface Chat {
   messages: ChatMessage[]
 }
 
-export interface AuthTokens {
-  accessToken: string
-  refreshToken: string
-}
+
 
 export interface Translation {
   word: string

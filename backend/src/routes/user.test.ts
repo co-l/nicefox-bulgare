@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
+import cookieParser from 'cookie-parser'
+import jwt from 'jsonwebtoken'
+import { authMiddleware } from '../shared/middleware.js'
 
 // Mock the db module
 const mockRunQuery = vi.fn()
@@ -11,21 +14,22 @@ vi.mock('../db.js', () => ({
   runSingleQuery: (...args: unknown[]) => mockRunSingleQuery(...args),
 }))
 
-// Mock auth middleware
-vi.mock('../middleware/auth.js', () => ({
-  authMiddleware: (req: express.Request, _res: express.Response, next: express.NextFunction) => {
-    (req as { userId?: string }).userId = 'test-user-123'
-    next()
-  },
-  AuthRequest: {},
-}))
-
 import userRouter from './user.js'
+
+const JWT_SECRET = 'test-secret-for-testing'
+
+// Helper to create a valid JWT token
+function createToken(userId: string, email: string, role: 'user' | 'admin' = 'user') {
+  return jwt.sign({ userId, email, role }, JWT_SECRET, { expiresIn: '15m' })
+}
 
 function createApp() {
   const app = express()
   app.use(express.json())
-  app.use('/api/user', userRouter)
+  app.use(cookieParser())
+  // Apply auth middleware
+  const auth = authMiddleware({ jwtSecret: JWT_SECRET })
+  app.use('/api/user', auth, userRouter)
   return app
 }
 
@@ -34,9 +38,11 @@ describe('User Routes', () => {
     vi.clearAllMocks()
   })
 
+  const validToken = createToken('test-user-123', 'test@example.com')
+
   describe('GET /profile', () => {
     it('should return user profile with languages', async () => {
-      // Mock user found - NiceFox GraphDB format (flat)
+      // Mock user found
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
           id: 'test-user-123',
@@ -57,7 +63,9 @@ describe('User Routes', () => {
       ])
 
       const app = createApp()
-      const res = await request(app).get('/api/user/profile')
+      const res = await request(app)
+        .get('/api/user/profile')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(200)
       expect(res.body.user).toEqual({
@@ -75,10 +83,19 @@ describe('User Routes', () => {
       mockRunSingleQuery.mockResolvedValueOnce(null)
 
       const app = createApp()
-      const res = await request(app).get('/api/user/profile')
+      const res = await request(app)
+        .get('/api/user/profile')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(404)
       expect(res.body.error).toBe('User not found')
+    })
+
+    it('should return 401 without authentication', async () => {
+      const app = createApp()
+      const res = await request(app).get('/api/user/profile')
+
+      expect(res.status).toBe(401)
     })
   })
 
@@ -89,6 +106,7 @@ describe('User Routes', () => {
       const app = createApp()
       const res = await request(app)
         .put('/api/user/profile')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ name: 'Updated Name' })
 
       expect(res.status).toBe(200)
@@ -105,6 +123,7 @@ describe('User Routes', () => {
       const app = createApp()
       const res = await request(app)
         .put('/api/user/profile')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ nativeLanguage: 'English' })
 
       expect(res.status).toBe(200)
@@ -118,6 +137,7 @@ describe('User Routes', () => {
       const app = createApp()
       const res = await request(app)
         .put('/api/user/profile')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({})
 
       expect(res.status).toBe(400)
@@ -143,7 +163,9 @@ describe('User Routes', () => {
       ])
 
       const app = createApp()
-      const res = await request(app).get('/api/user/languages')
+      const res = await request(app)
+        .get('/api/user/languages')
+        .set('Cookie', [`auth_token=${validToken}`])
 
       expect(res.status).toBe(200)
       expect(res.body.languages).toEqual([
@@ -161,6 +183,7 @@ describe('User Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/user/languages')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ language: 'Bulgarian', proficiency: 'beginner' })
 
       expect(res.status).toBe(201)
@@ -178,6 +201,7 @@ describe('User Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/user/languages')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ language: 'Bulgarian', proficiency: 'beginner' })
 
       expect(res.status).toBe(400)
@@ -188,6 +212,7 @@ describe('User Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/user/languages')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ language: 'Bulgarian', proficiency: 'expert' })
 
       expect(res.status).toBe(400)
@@ -198,6 +223,7 @@ describe('User Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/user/languages')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ language: 'Bulgarian' })
 
       expect(res.status).toBe(400)
@@ -212,6 +238,7 @@ describe('User Routes', () => {
       const app = createApp()
       const res = await request(app)
         .put('/api/user/languages/Bulgarian')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ proficiency: 'intermediate' })
 
       expect(res.status).toBe(200)
@@ -222,6 +249,7 @@ describe('User Routes', () => {
       const app = createApp()
       const res = await request(app)
         .put('/api/user/languages/Bulgarian')
+        .set('Cookie', [`auth_token=${validToken}`])
         .send({ proficiency: 'expert' })
 
       expect(res.status).toBe(400)

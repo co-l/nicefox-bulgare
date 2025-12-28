@@ -1,12 +1,9 @@
-import { Router, Response } from 'express'
+import { Router, Request, Response } from 'express'
 import { v4 as uuidv4 } from 'uuid'
-import { authMiddleware, AuthRequest } from '../middleware/auth.js'
 import { runQuery, runSingleQuery } from '../db.js'
 import { calculateNextReview, getInitialReview, ReviewAction } from '../utils/spacedRepetition.js'
 
 const router = Router()
-
-router.use(authMiddleware)
 
 // NiceFox GraphDB returns flat node/relationship objects
 interface FlashcardRecord {
@@ -29,13 +26,13 @@ interface CountRecord {
   count: number
 }
 
-router.get('/', async (req: AuthRequest, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const results = await runQuery<FlashcardRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)-[rel:BF_HAS_FLASHCARD]->(f:BF_Flashcard)
        RETURN f, rel
        ORDER BY f.created_at DESC`,
-      { userId: req.userId }
+      { userId: req.authUser!.id }
     )
 
     const flashcards = results.map((r) => ({
@@ -57,13 +54,13 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.get('/due-count', async (req: AuthRequest, res: Response) => {
+router.get('/due-count', async (req: Request, res: Response) => {
   try {
     const result = await runSingleQuery<CountRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)-[rel:BF_HAS_FLASHCARD]->(f:BF_Flashcard)
        WHERE rel.next_display <= $now
        RETURN count(f) as count`,
-      { userId: req.userId, now: Date.now() }
+      { userId: req.authUser!.id, now: Date.now() }
     )
 
     res.json({ count: result?.count || 0 })
@@ -73,7 +70,7 @@ router.get('/due-count', async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.get('/session', async (req: AuthRequest, res: Response) => {
+router.get('/session', async (req: Request, res: Response) => {
   try {
     const results = await runQuery<FlashcardRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)-[rel:BF_HAS_FLASHCARD]->(f:BF_Flashcard)
@@ -81,7 +78,7 @@ router.get('/session', async (req: AuthRequest, res: Response) => {
        RETURN f, rel
        ORDER BY rel.next_display ASC
        LIMIT 10`,
-      { userId: req.userId, now: Date.now() }
+      { userId: req.authUser!.id, now: Date.now() }
     )
 
     const cards = results.map((r) => ({
@@ -103,7 +100,7 @@ router.get('/session', async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.post('/', async (req: AuthRequest, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { native, target, originalWord, partOfSpeech, forms, language } = req.body
 
@@ -121,7 +118,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       const langResult = await runSingleQuery<{ l: { language: string } }>(
         `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)
          RETURN l LIMIT 1`,
-        { userId: req.userId }
+        { userId: req.authUser!.id }
       )
       targetLanguage = langResult?.l.language
     }
@@ -147,7 +144,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
          created_at: timestamp()
        })`,
       {
-        userId: req.userId,
+        userId: req.authUser!.id,
         language: targetLanguage,
         flashcardId,
         native,
@@ -180,7 +177,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.post('/:id/review', async (req: AuthRequest, res: Response) => {
+router.post('/:id/review', async (req: Request, res: Response) => {
   try {
     const { id } = req.params
     const { action } = req.body as { action: ReviewAction }
@@ -193,7 +190,7 @@ router.post('/:id/review', async (req: AuthRequest, res: Response) => {
     const current = await runSingleQuery<FlashcardRecord>(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)-[rel:BF_HAS_FLASHCARD]->(f:BF_Flashcard {id: $flashcardId})
        RETURN f, rel`,
-      { userId: req.userId, flashcardId: id }
+      { userId: req.authUser!.id, flashcardId: id }
     )
 
     if (!current) {
@@ -211,7 +208,7 @@ router.post('/:id/review', async (req: AuthRequest, res: Response) => {
            rel.status = $status,
            f.last_reviewed = timestamp()`,
       {
-        userId: req.userId,
+        userId: req.authUser!.id,
         flashcardId: id,
         nextDisplay: result.nextDisplay.getTime(),
         intervalIndex: result.newIntervalIndex,
@@ -230,14 +227,14 @@ router.post('/:id/review', async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.delete('/:id', async (req: AuthRequest, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params
 
     await runQuery(
       `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)-[rel:BF_HAS_FLASHCARD]->(f:BF_Flashcard {id: $flashcardId})
        DELETE rel, f`,
-      { userId: req.userId, flashcardId: id }
+      { userId: req.authUser!.id, flashcardId: id }
     )
 
     res.json({ message: 'Flashcard deleted' })
