@@ -1,5 +1,4 @@
-// @ts-ignore - nicefox-graphdb is imported from TypeScript source
-import { NiceFoxGraphDB, TestClient } from 'nicefox-graphdb/packages/client/src/index.ts'
+import { NiceFoxGraphDB, TestClient } from 'nicefox-graphdb/packages/client/dist/index.js'
 
 let graph: NiceFoxGraphDB | null = null
 let testClient: TestClient | null = null

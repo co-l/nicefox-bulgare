@@ -5,7 +5,7 @@ const mockQuery = vi.fn()
 const mockExecute = vi.fn()
 const mockHealth = vi.fn()
 
-vi.mock('nicefox-graphdb/packages/client/src/index.ts', () => {
+vi.mock('nicefox-graphdb/packages/client/dist/index.js', () => {
   return {
     NiceFoxGraphDB: class MockNiceFoxGraphDB {
       constructor(public config: unknown) {}
