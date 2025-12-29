@@ -34,7 +34,8 @@ export default function Navbar() {
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
       <div className="container">
-        <Link className="navbar-brand" to="/">
+        <Link className="navbar-brand d-flex align-items-center" to="/">
+          <img src="/nicefox.gif" alt="NiceFox" height="42" className="me-2" />
           Apprendre le bulgare
         </Link>
         <button
