@@ -40,3 +40,6 @@ audio-cache/
 
 # STT temp files
 temp-audio/
+
+# Local database
+backend/data/
