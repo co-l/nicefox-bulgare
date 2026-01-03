@@ -1,22 +1,20 @@
 import { Router, Request, Response } from 'express'
 import { runQuery, runSingleQuery } from '../db.js'
-import { authMiddleware, getLoginUrl } from '../shared/middleware.js'
+import { authMiddleware, getLoginUrl, getJwtSecret } from 'nicefox-auth'
 import { v4 as uuidv4 } from 'uuid'
 
 const router = Router()
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'https://auth.nicefox.net'
+const JWT_SECRET = getJwtSecret()
+const AUTH_SERVICE_URL = 'https://auth.nicefox.net'
 
-// NiceFox GraphDB returns node objects with properties nested
+// NiceFox GraphDB returns node objects directly
 interface UserRecord {
   u: {
-    properties: {
-      id: string
-      email: string
-      name: string
-      native_language?: string
-    }
+    id: string
+    email: string
+    name: string
+    native_language?: string
   }
 }
 
@@ -37,13 +35,9 @@ async function ensureUserExists(authId: string, email: string): Promise<void> {
 // SSO auth middleware for /me endpoint
 const ssoAuth = authMiddleware({
   jwtSecret: JWT_SECRET,
-  authServiceUrl: AUTH_SERVICE_URL,
-  onUnauthorized: (req: Request, res: Response) => {
+  onUnauthorized: (_req: Request, res: Response) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5180'
-    // Add token_in_url=true for non-.nicefox.net domains (dev mode)
-    const needTokenInUrl = !req.get('host')?.endsWith('.nicefox.net')
-    const tokenParam = needTokenInUrl ? '&token_in_url=true' : ''
-    const loginUrl = getLoginUrl(AUTH_SERVICE_URL, frontendUrl) + tokenParam
+    const loginUrl = getLoginUrl(frontendUrl)
     res.status(401).json({
       error: 'Unauthorized',
       loginUrl
@@ -51,7 +45,7 @@ const ssoAuth = authMiddleware({
   },
 })
 
-// Check current auth status - used by frontend to verify SSO cookie
+// Check current auth status - used by frontend to verify token
 // Also ensures user node exists in database on first login
 router.get('/me', ssoAuth, async (req: Request, res: Response) => {
   try {
@@ -69,7 +63,7 @@ router.get('/me', ssoAuth, async (req: Request, res: Response) => {
       return
     }
 
-    const user = result.u.properties
+    const user = result.u
     res.json({
       user: {
         id: user.id,
@@ -85,13 +79,10 @@ router.get('/me', ssoAuth, async (req: Request, res: Response) => {
   }
 })
 
-// Logout - clears any local state (SSO cookie is managed by auth.nicefox.net)
+// Logout - clears local state, frontend handles token removal
 router.post('/logout', (_req: Request, res: Response) => {
-  // The actual auth cookie is httpOnly on .nicefox.net domain
-  // We can't clear it from here, but we can redirect to SSO logout if needed
   res.json({
     message: 'Logged out successfully',
-    // Frontend can redirect here if full logout is needed
     logoutUrl: `${AUTH_SERVICE_URL}/logout`,
   })
 })

@@ -5,31 +5,25 @@ import { generateChatResponse, analyzeGrammar, GrammarAnalysis } from '../servic
 
 const router = Router()
 
-// NiceFox GraphDB returns node objects with properties nested
+// NiceFox GraphDB returns node objects directly
 // JSON properties are auto-parsed, so messages is already an array
 interface ChatRecord {
   c: {
-    properties: {
-      id: string
-      messages: Message[] // NiceFox GraphDB auto-parses JSON
-      created_at: number
-      updated_at: number
-    }
+    id: string
+    messages: Message[] // NiceFox GraphDB auto-parses JSON
+    created_at: number
+    updated_at: number
   }
 }
 
 interface UserLanguageRecord {
   u: {
-    properties: {
-      name: string
-      native_language: string
-    }
+    name: string
+    native_language: string
   }
   l: {
-    properties: {
-      language: string
-      proficiency: string
-    }
+    language: string
+    proficiency: string
   }
 }
 
@@ -51,7 +45,7 @@ router.get('/history', async (req: Request, res: Response) => {
     )
 
     const chats = results.map((r) => {
-      const chat = r.c.properties
+      const chat = r.c
       // NiceFox GraphDB already parses JSON properties via deepParseJson
       const messages: Message[] = Array.isArray(chat.messages) ? chat.messages : []
 
@@ -85,7 +79,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       return
     }
 
-    const chat = result.c.properties
+    const chat = result.c
     // NiceFox GraphDB already parses JSON properties via deepParseJson
     const messages: Message[] = Array.isArray(chat.messages) ? chat.messages : []
 
@@ -115,10 +109,10 @@ router.post('/start', async (req: Request, res: Response) => {
       return
     }
 
-    const userName = userLang.u.properties.name || 'friend'
-    const nativeLanguage = userLang.u.properties.native_language || 'French'
-    const targetLanguage = userLang.l.properties.language
-    const proficiency = userLang.l.properties.proficiency
+    const userName = userLang.u.name || 'friend'
+    const nativeLanguage = userLang.u.native_language || 'French'
+    const targetLanguage = userLang.l.language
+    const proficiency = userLang.l.proficiency
 
     // Generate initial greeting
     const aiResponse = await generateChatResponse(
@@ -185,10 +179,10 @@ router.post('/', async (req: Request, res: Response) => {
       return
     }
 
-    const userName = userLang.u.properties.name || 'friend'
-    const nativeLanguage = userLang.u.properties.native_language || 'French'
-    const targetLanguage = userLang.l.properties.language
-    const proficiency = userLang.l.properties.proficiency
+    const userName = userLang.u.name || 'friend'
+    const nativeLanguage = userLang.u.native_language || 'French'
+    const targetLanguage = userLang.l.language
+    const proficiency = userLang.l.proficiency
 
     let messages: Message[] = []
     let currentChatId = chatId
@@ -204,7 +198,7 @@ router.post('/', async (req: Request, res: Response) => {
 
       if (existingChat) {
         // NiceFox GraphDB already parses JSON properties via deepParseJson
-        const storedMessages = existingChat.c.properties.messages
+        const storedMessages = existingChat.c.messages
         messages = Array.isArray(storedMessages) ? storedMessages : []
         console.log('Loaded messages count:', messages.length)
       } else {

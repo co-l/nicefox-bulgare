@@ -1,9 +1,8 @@
 import 'dotenv/config'
 import express, { Request, Response } from 'express'
 import cors from 'cors'
-import cookieParser from 'cookie-parser'
 import { verifyConnection, closeConnection } from './db.js'
-import { authMiddleware, getLoginUrl } from './shared/middleware.js'
+import { authMiddleware, getLoginUrl, getJwtSecret } from 'nicefox-auth'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/user.js'
 import flashcardRoutes from './routes/flashcards.js'
@@ -15,15 +14,13 @@ import sttRoutes from './routes/stt.js'
 const app = express()
 const PORT = process.env.PORT || 3188
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'https://auth.nicefox.net'
+const JWT_SECRET = getJwtSecret()
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5180',
   credentials: true,
 }))
 app.use(express.json())
-app.use(cookieParser())
 
 app.get('/api/health', async (_req, res) => {
   const dbConnected = await verifyConnection()
@@ -40,13 +37,9 @@ app.use('/api/auth', authRoutes)
 // SSO auth middleware for protected routes
 const ssoAuth = authMiddleware({
   jwtSecret: JWT_SECRET,
-  authServiceUrl: AUTH_SERVICE_URL,
-  onUnauthorized: (req: Request, res: Response) => {
+  onUnauthorized: (_req: Request, res: Response) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5180'
-    // Add token_in_url=true for non-.nicefox.net domains (dev mode)
-    const needTokenInUrl = !req.get('host')?.endsWith('.nicefox.net')
-    const tokenParam = needTokenInUrl ? '&token_in_url=true' : ''
-    const loginUrl = getLoginUrl(AUTH_SERVICE_URL, frontendUrl) + tokenParam
+    const loginUrl = getLoginUrl(frontendUrl)
     res.status(401).json({
       error: 'Unauthorized',
       loginUrl

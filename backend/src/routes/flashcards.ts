@@ -5,24 +5,20 @@ import { calculateNextReview, getInitialReview, ReviewAction } from '../utils/sp
 
 const router = Router()
 
-// NiceFox GraphDB returns node/relationship objects with properties nested
+// NiceFox GraphDB returns node/relationship objects directly
 interface FlashcardRecord {
   f: {
-    properties: {
-      id: string
-      native: string
-      target: string
-      original_word?: string
-      part_of_speech?: string
-      forms?: Record<string, string[]> // NiceFox GraphDB auto-parses JSON
-    }
+    id: string
+    native: string
+    target: string
+    original_word?: string
+    part_of_speech?: string
+    forms?: Record<string, string[]> // NiceFox GraphDB auto-parses JSON
   }
   rel: {
-    properties: {
-      next_display: number
-      interval_index: number
-      status: string
-    }
+    next_display: number
+    interval_index: number
+    status: string
   }
 }
 
@@ -40,8 +36,8 @@ router.get('/', async (req: Request, res: Response) => {
     )
 
     const flashcards = results.map((r) => {
-      const f = r.f.properties
-      const rel = r.rel.properties
+      const f = r.f
+      const rel = r.rel
       return {
         id: f.id,
         native: f.native,
@@ -91,8 +87,8 @@ router.get('/session', async (req: Request, res: Response) => {
     )
 
     const cards = results.map((r) => {
-      const f = r.f.properties
-      const rel = r.rel.properties
+      const f = r.f
+      const rel = r.rel
       return {
         id: f.id,
         native: f.native,
@@ -129,12 +125,12 @@ router.post('/', async (req: Request, res: Response) => {
     // If language not specified, use the first language the user is learning
     let targetLanguage = language
     if (!targetLanguage) {
-      const langResult = await runSingleQuery<{ l: { properties: { language: string } } }>(
+      const langResult = await runSingleQuery<{ l: { language: string } }>(
         `MATCH (u:BF_User {id: $userId})-[:BF_LEARNS]->(l:BF_Language)
          RETURN l LIMIT 1`,
         { userId: req.authUser!.id }
       )
-      targetLanguage = langResult?.l.properties.language
+      targetLanguage = langResult?.l.language
     }
 
     if (!targetLanguage) {
@@ -213,7 +209,7 @@ router.post('/:id/review', async (req: Request, res: Response) => {
       return
     }
 
-    const currentIntervalIndex = current.rel.properties.interval_index || 0
+    const currentIntervalIndex = current.rel.interval_index || 0
     const result = calculateNextReview(currentIntervalIndex, action)
 
     await runQuery(

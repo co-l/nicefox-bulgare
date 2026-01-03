@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
-import cookieParser from 'cookie-parser'
+
 import jwt from 'jsonwebtoken'
-import { authMiddleware } from '../shared/middleware.js'
+import { authMiddleware } from 'nicefox-auth'
 
 // Mock the db module
 const mockRunQuery = vi.fn()
@@ -34,7 +34,7 @@ import chatRouter from './chat.js'
 
 const JWT_SECRET = 'test-secret-for-testing'
 
-// Helper to create a valid JWT token
+// Helper to create a valid JWT token (nicefox-auth expects userId in payload)
 function createToken(userId: string, email: string, role: 'user' | 'admin' = 'user') {
   return jwt.sign({ userId, email, role }, JWT_SECRET, { expiresIn: '15m' })
 }
@@ -42,7 +42,6 @@ function createToken(userId: string, email: string, role: 'user' | 'admin' = 'us
 function createApp() {
   const app = express()
   app.use(express.json())
-  app.use(cookieParser())
   const auth = authMiddleware({ jwtSecret: JWT_SECRET })
   app.use('/api/chat', auth, chatRouter)
   return app
@@ -61,12 +60,10 @@ describe('Chat Routes', () => {
       mockRunQuery.mockResolvedValueOnce([
         {
           c: {
-            properties: {
-              id: 'chat-1',
-              messages: JSON.stringify([{ role: 'assistant', content: 'Hello!', timestamp: '2024-01-01T00:00:00Z' }]),
-              created_at: Date.now(),
-              updated_at: Date.now(),
-            },
+            id: 'chat-1',
+            messages: [{ role: 'assistant', content: 'Hello!', timestamp: '2024-01-01T00:00:00Z' }],
+            created_at: Date.now(),
+            updated_at: Date.now(),
           },
         },
       ])
@@ -74,7 +71,7 @@ describe('Chat Routes', () => {
       const app = createApp()
       const res = await request(app)
         .get('/api/chat/history')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body.chats).toHaveLength(1)
@@ -93,21 +90,20 @@ describe('Chat Routes', () => {
     it('should return a specific chat', async () => {
       mockRunSingleQuery.mockResolvedValueOnce({
         c: {
-          properties: {
-            id: 'chat-1',
-            messages: JSON.stringify([
-              { role: 'assistant', content: 'Hello!', timestamp: '2024-01-01T00:00:00Z' },
-            ]),
-            created_at: Date.now(),
-            updated_at: Date.now(),
-          },
+          id: 'chat-1',
+          // NiceFox GraphDB auto-parses JSON, so messages is already an array
+          messages: [
+            { role: 'assistant', content: 'Hello!', timestamp: '2024-01-01T00:00:00Z' },
+          ],
+          created_at: Date.now(),
+          updated_at: Date.now(),
         },
       })
 
       const app = createApp()
       const res = await request(app)
         .get('/api/chat/chat-1')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body.id).toBe('chat-1')
@@ -120,7 +116,7 @@ describe('Chat Routes', () => {
       const app = createApp()
       const res = await request(app)
         .get('/api/chat/nonexistent')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
 
       expect(res.status).toBe(404)
       expect(res.body.error).toBe('Chat not found')
@@ -132,16 +128,12 @@ describe('Chat Routes', () => {
       // Mock user language lookup
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
-          properties: {
-            name: 'Test User',
-            native_language: 'French',
-          },
+          name: 'Test User',
+          native_language: 'French',
         },
         l: {
-          properties: {
-            language: 'Bulgarian',
-            proficiency: 'beginner',
-          },
+          language: 'Bulgarian',
+          proficiency: 'beginner',
         },
       })
 
@@ -151,7 +143,7 @@ describe('Chat Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/chat/start')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body).toHaveProperty('chatId', 'test-chat-uuid')
@@ -164,7 +156,7 @@ describe('Chat Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/chat/start')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
 
       expect(res.status).toBe(400)
       expect(res.body.error).toBe('No target language set. Please complete onboarding.')
@@ -176,28 +168,22 @@ describe('Chat Routes', () => {
       // Mock user language lookup
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
-          properties: {
-            name: 'Test User',
-            native_language: 'French',
-          },
+          name: 'Test User',
+          native_language: 'French',
         },
         l: {
-          properties: {
-            language: 'Bulgarian',
-            proficiency: 'beginner',
-          },
+          language: 'Bulgarian',
+          proficiency: 'beginner',
         },
       })
 
       // Mock existing chat lookup
       mockRunSingleQuery.mockResolvedValueOnce({
         c: {
-          properties: {
-            id: 'existing-chat',
-            messages: JSON.stringify([
-              { role: 'assistant', content: 'Hello!', timestamp: '2024-01-01T00:00:00Z' },
-            ]),
-          },
+          id: 'existing-chat',
+          messages: [
+            { role: 'assistant', content: 'Hello!', timestamp: '2024-01-01T00:00:00Z' },
+          ],
         },
       })
 
@@ -207,7 +193,7 @@ describe('Chat Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/chat')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
         .send({
           chatId: 'existing-chat',
           message: 'Zdravei!',
@@ -222,16 +208,12 @@ describe('Chat Routes', () => {
       // Mock user language lookup
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
-          properties: {
-            name: 'Test User',
-            native_language: 'French',
-          },
+          name: 'Test User',
+          native_language: 'French',
         },
         l: {
-          properties: {
-            language: 'Bulgarian',
-            proficiency: 'beginner',
-          },
+          language: 'Bulgarian',
+          proficiency: 'beginner',
         },
       })
 
@@ -241,7 +223,7 @@ describe('Chat Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/chat')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
         .send({
           message: 'Zdravei!',
         })
@@ -254,7 +236,7 @@ describe('Chat Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/chat')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
         .send({})
 
       expect(res.status).toBe(400)
@@ -267,7 +249,7 @@ describe('Chat Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/chat')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
         .send({ message: 'Hello' })
 
       expect(res.status).toBe(400)

@@ -8,10 +8,6 @@ interface ProtectedRouteProps {
 // SSO login URL - redirects back to current page after auth
 const AUTH_SERVICE_URL = 'https://auth.nicefox.net'
 
-// Request token in URL for cross-domain support (localhost dev, etc.)
-const NEED_TOKEN_IN_URL = window.location.hostname !== 'nicefox.net' &&
-                          !window.location.hostname.endsWith('.nicefox.net')
-
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, isLoading, authError } = useAuth()
 
@@ -50,8 +46,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     // Redirect to SSO login with current URL as redirect target
     // Use origin + pathname to avoid including query params (like ?token=) in the redirect
     const currentUrl = window.location.origin + window.location.pathname
-    const tokenParam = NEED_TOKEN_IN_URL ? '&token_in_url=true' : ''
-    window.location.href = `${AUTH_SERVICE_URL}/login?redirect=${encodeURIComponent(currentUrl)}${tokenParam}`
+    window.location.href = `${AUTH_SERVICE_URL}/login?redirect=${encodeURIComponent(currentUrl)}`
 
     // Show loading while redirecting
     return (

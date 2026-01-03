@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
-import cookieParser from 'cookie-parser'
+
 import jwt from 'jsonwebtoken'
-import { authMiddleware } from '../shared/middleware.js'
+import { authMiddleware } from 'nicefox-auth'
 
 // Mock the db module
 const mockRunQuery = vi.fn()
@@ -53,7 +53,7 @@ import flashcardsRouter from './flashcards.js'
 
 const JWT_SECRET = 'test-secret-for-testing'
 
-// Helper to create a valid JWT token
+// Helper to create a valid JWT token (nicefox-auth expects userId in payload)
 function createToken(userId: string, email: string, role: 'user' | 'admin' = 'user') {
   return jwt.sign({ userId, email, role }, JWT_SECRET, { expiresIn: '15m' })
 }
@@ -61,7 +61,6 @@ function createToken(userId: string, email: string, role: 'user' | 'admin' = 'us
 function createApp() {
   const app = express()
   app.use(express.json())
-  app.use(cookieParser())
   const auth = authMiddleware({ jwtSecret: JWT_SECRET })
   app.use('/api/flashcards', auth, flashcardsRouter)
   return app
@@ -80,21 +79,17 @@ describe('Flashcards Routes', () => {
       mockRunQuery.mockResolvedValueOnce([
         {
           f: {
-            properties: {
-              id: 'fc-1',
-              native: 'bonjour',
-              target: 'zdravei',
-              original_word: 'zdravei',
-              part_of_speech: 'greeting',
-              forms: null,
-            },
+            id: 'fc-1',
+            native: 'bonjour',
+            target: 'zdravei',
+            original_word: 'zdravei',
+            part_of_speech: 'greeting',
+            forms: null,
           },
           rel: {
-            properties: {
-              next_display: Date.now() + 86400000,
-              interval_index: 1,
-              status: 'learning',
-            },
+            next_display: Date.now() + 86400000,
+            interval_index: 1,
+            status: 'learning',
           },
         },
       ])
@@ -102,7 +97,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .get('/api/flashcards')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body.flashcards).toHaveLength(1)
@@ -132,7 +127,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .get('/api/flashcards/due-count')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body.count).toBe(5)
@@ -144,7 +139,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .get('/api/flashcards/due-count')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body.count).toBe(0)
@@ -156,18 +151,14 @@ describe('Flashcards Routes', () => {
       mockRunQuery.mockResolvedValueOnce([
         {
           f: {
-            properties: {
-              id: 'fc-1',
-              native: 'bonjour',
-              target: 'zdravei',
-            },
+            id: 'fc-1',
+            native: 'bonjour',
+            target: 'zdravei',
           },
           rel: {
-            properties: {
-              next_display: Date.now() - 1000,
-              interval_index: 0,
-              status: 'new',
-            },
+            next_display: Date.now() - 1000,
+            interval_index: 0,
+            status: 'new',
           },
         },
       ])
@@ -175,7 +166,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .get('/api/flashcards/session')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body.cards).toHaveLength(1)
@@ -186,7 +177,7 @@ describe('Flashcards Routes', () => {
     it('should create a new flashcard', async () => {
       // Mock language lookup
       mockRunSingleQuery.mockResolvedValueOnce({
-        l: { properties: { language: 'Bulgarian' } },
+        l: { language: 'Bulgarian' },
       })
       // Mock creation
       mockRunQuery.mockResolvedValueOnce([])
@@ -194,7 +185,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/flashcards')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
         .send({
           native: 'bonjour',
           target: 'zdravei',
@@ -214,7 +205,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/flashcards')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
         .send({ native: 'bonjour' })
 
       expect(res.status).toBe(400)
@@ -227,7 +218,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/flashcards')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
         .send({ native: 'bonjour', target: 'zdravei' })
 
       expect(res.status).toBe(400)
@@ -239,8 +230,8 @@ describe('Flashcards Routes', () => {
     it('should update flashcard after easy review', async () => {
       // Mock flashcard lookup
       mockRunSingleQuery.mockResolvedValueOnce({
-        f: { properties: { id: 'fc-1' } },
-        rel: { properties: { interval_index: 0 } },
+        f: { id: 'fc-1' },
+        rel: { interval_index: 0 },
       })
       // Mock update
       mockRunQuery.mockResolvedValueOnce([])
@@ -248,7 +239,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/flashcards/fc-1/review')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
         .send({ action: 'easy' })
 
       expect(res.status).toBe(200)
@@ -264,7 +255,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/flashcards/fc-nonexistent/review')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
         .send({ action: 'easy' })
 
       expect(res.status).toBe(404)
@@ -275,7 +266,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .post('/api/flashcards/fc-1/review')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
         .send({ action: 'invalid' })
 
       expect(res.status).toBe(400)
@@ -290,7 +281,7 @@ describe('Flashcards Routes', () => {
       const app = createApp()
       const res = await request(app)
         .delete('/api/flashcards/fc-1')
-        .set('Cookie', [`auth_token=${validToken}`])
+        .set('Authorization', `Bearer ${validToken}`)
 
       expect(res.status).toBe(200)
       expect(res.body.message).toBe('Flashcard deleted')

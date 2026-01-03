@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
-import cookieParser from 'cookie-parser'
+
 import jwt from 'jsonwebtoken'
 
 const JWT_SECRET = 'test-secret-for-testing'
@@ -27,7 +27,7 @@ vi.mock('uuid', () => ({
 // Import after setting env and mocks
 const { default: authRouter } = await import('./auth.js')
 
-// Helper to create a valid JWT token
+// Helper to create a valid JWT token (nicefox-auth expects userId in payload)
 function createToken(userId: string, email: string, role: 'user' | 'admin' = 'user') {
   return jwt.sign({ userId, email, role }, JWT_SECRET, { expiresIn: '15m' })
 }
@@ -35,7 +35,6 @@ function createToken(userId: string, email: string, role: 'user' | 'admin' = 'us
 function createApp() {
   const app = express()
   app.use(express.json())
-  app.use(cookieParser())
   app.use('/api/auth', authRouter)
   return app
 }
@@ -54,19 +53,17 @@ describe('Auth Routes (SSO)', () => {
       // Mock: fetch user data
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
-          properties: {
-            id: 'user-123',
-            email: 'test@example.com',
-            name: 'Test User',
-            native_language: 'French',
-          },
+          id: 'user-123',
+          email: 'test@example.com',
+          name: 'Test User',
+          native_language: 'French',
         },
       })
 
       const app = createApp()
       const res = await request(app)
         .get('/api/auth/me')
-        .set('Cookie', [`auth_token=${token}`])
+        .set('Authorization', `Bearer ${token}`)
 
       expect(res.status).toBe(200)
       expect(res.body.user).toEqual({
@@ -85,19 +82,17 @@ describe('Auth Routes (SSO)', () => {
       // Mock: fetch user data
       mockRunSingleQuery.mockResolvedValueOnce({
         u: {
-          properties: {
-            id: 'user-123',
-            email: 'test@example.com',
-            name: 'Existing User',
-            native_language: null,
-          },
+          id: 'user-123',
+          email: 'test@example.com',
+          name: 'Existing User',
+          native_language: null,
         },
       })
 
       const app = createApp()
       const res = await request(app)
         .get('/api/auth/me')
-        .set('Cookie', [`auth_token=${token}`])
+        .set('Authorization', `Bearer ${token}`)
 
       expect(res.status).toBe(200)
       expect(res.body.user.name).toBe('Existing User')
@@ -117,7 +112,7 @@ describe('Auth Routes (SSO)', () => {
       const app = createApp()
       const res = await request(app)
         .get('/api/auth/me')
-        .set('Cookie', ['auth_token=invalid-token'])
+        .set('Authorization', 'Bearer invalid-token')
 
       expect(res.status).toBe(401)
       expect(res.body.error).toBe('Unauthorized')
@@ -130,7 +125,7 @@ describe('Auth Routes (SSO)', () => {
       mockRunQuery.mockResolvedValueOnce([])
       // Mock: fetch user data
       mockRunSingleQuery.mockResolvedValueOnce({
-        u: { properties: { id: 'user-123', email: 'test@example.com', name: 'Test User', native_language: null } },
+        u: { id: 'user-123', email: 'test@example.com', name: 'Test User', native_language: null },
       })
 
       const app = createApp()

@@ -19,14 +19,10 @@ function getMistral(): Mistral {
 
 interface UserLanguageRecord {
   u: {
-    properties: {
-      native_language: string
-    }
+    native_language: string
   }
   l: {
-    properties: {
-      language: string
-    }
+    language: string
   }
 }
 
@@ -87,8 +83,8 @@ router.post('/', async (req: Request, res: Response) => {
       return
     }
 
-    const nativeLanguage = userLang.u.properties.native_language || 'French'
-    const targetLanguage = userLang.l.properties.language
+    const nativeLanguage = userLang.u.native_language || 'French'
+    const targetLanguage = userLang.l.language
 
     const mistral = getMistral()
 

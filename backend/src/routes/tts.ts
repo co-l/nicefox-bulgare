@@ -3,21 +3,17 @@ import { createReadStream } from 'fs'
 import { stat } from 'fs/promises'
 import { runSingleQuery } from '../db.js'
 import { generateAudio, getAudioPath } from '../services/tts.js'
-import { authMiddleware, getLoginUrl } from '../shared/middleware.js'
+import { authMiddleware, getLoginUrl, getJwtSecret } from 'nicefox-auth'
 
 const router = Router()
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'https://auth.nicefox.net'
+const JWT_SECRET = getJwtSecret()
 
 const ssoAuth = authMiddleware({
   jwtSecret: JWT_SECRET,
-  authServiceUrl: AUTH_SERVICE_URL,
-  onUnauthorized: (req: Request, res: Response) => {
+  onUnauthorized: (_req: Request, res: Response) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5180'
-    const needTokenInUrl = !req.get('host')?.endsWith('.nicefox.net')
-    const tokenParam = needTokenInUrl ? '&token_in_url=true' : ''
-    const loginUrl = getLoginUrl(AUTH_SERVICE_URL, frontendUrl) + tokenParam
+    const loginUrl = getLoginUrl(frontendUrl)
     res.status(401).json({
       error: 'Unauthorized',
       loginUrl
@@ -27,9 +23,7 @@ const ssoAuth = authMiddleware({
 
 interface UserLanguageRecord {
   l: {
-    properties: {
-      language: string
-    }
+    language: string
   }
 }
 
@@ -86,7 +80,7 @@ router.post('/generate', ssoAuth, async (req: Request, res: Response) => {
       { userId: req.authUser!.id }
     )
 
-    const language = userLang?.l.properties.language || 'english'
+    const language = userLang?.l.language || 'english'
     console.log(`[TTS] User language: ${language}`)
 
     const { audioId } = await generateAudio(text, language)

@@ -15,9 +15,7 @@ const upload = multer({
 
 interface UserLanguageRecord {
   l: {
-    properties: {
-      language: string
-    }
+    language: string
   }
 }
 
@@ -36,7 +34,7 @@ router.post('/transcribe', upload.single('audio'), async (req: Request, res: Res
       { userId: req.authUser!.id }
     )
 
-    const language = userLang?.l.properties.language || 'english'
+    const language = userLang?.l.language || 'english'
 
     const result = await transcribeAudio(req.file.buffer, language)
     res.json(result)

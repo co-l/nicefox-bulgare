@@ -1,36 +1,27 @@
-import { NiceFoxGraphDB, TestClient } from 'nicefox-graphdb/packages/client/dist/index.js'
+import { GraphDB, type GraphDBClient } from 'nicefox-graphdb'
 
-let graph: NiceFoxGraphDB | null = null
-let testClient: TestClient | null = null
+let db: GraphDBClient | null = null
 
 /**
- * Set a test client for testing purposes.
- * When set, all queries will be routed through this client instead of the real NiceFoxGraphDB.
+ * Get or create the GraphDB client.
+ * In development mode (NODE_ENV=development), uses local SQLite.
+ * In production, connects to the remote GraphDB server.
  */
-export function setTestClient(client: TestClient | null): void {
-  testClient = client
-}
-
-export function getGraph(): NiceFoxGraphDB {
-  if (!graph) {
-    const url = process.env.GRAPHDB_URL || 'https://graphdb.nicefox.net'
-    const project = process.env.GRAPHDB_PROJECT || 'nicefox-bulgare'
-    const apiKey = process.env.GRAPHDB_API_KEY || ''
-    const env = process.env.NODE_ENV === 'production' ? 'production' : 'test'
-
-    graph = new NiceFoxGraphDB({
-      url,
-      project,
-      env,
-      apiKey,
+export async function getDb(): Promise<GraphDBClient> {
+  if (!db) {
+    db = await GraphDB({
+      project: process.env.GRAPHDB_PROJECT || 'bulgare',
+      // url, apiKey, env are auto-read from GRAPHDB_* env vars
+      // In dev mode (NODE_ENV=development), uses local SQLite automatically
     })
   }
-  return graph
+  return db
 }
 
 export async function verifyConnection(): Promise<boolean> {
   try {
-    await getGraph().health()
+    const client = await getDb()
+    await client.health()
     console.log('Connected to NiceFox GraphDB')
     return true
   } catch (error) {
@@ -40,17 +31,18 @@ export async function verifyConnection(): Promise<boolean> {
 }
 
 export async function closeConnection(): Promise<void> {
-  graph = null
+  if (db) {
+    db.close()
+    db = null
+  }
 }
 
 export async function runQuery<T>(
   cypher: string,
   params: Record<string, unknown> = {}
 ): Promise<T[]> {
-  if (testClient) {
-    return testClient.query<T>(cypher, params)
-  }
-  return getGraph().query<T>(cypher, params)
+  const client = await getDb()
+  return client.query<T>(cypher, params)
 }
 
 export async function runSingleQuery<T>(
