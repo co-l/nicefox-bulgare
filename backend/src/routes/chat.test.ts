@@ -19,14 +19,12 @@ vi.mock('uuid', () => ({
   v4: vi.fn().mockReturnValue('test-chat-uuid'),
 }))
 
-// Mock mistral service
-vi.mock('../services/mistral.js', () => ({
+// Mock spark service
+vi.mock('../services/spark.js', () => ({
   generateChatResponse: vi.fn().mockResolvedValue('Hello! How can I help you today?'),
   analyzeGrammar: vi.fn().mockResolvedValue({
-    original: 'test message',
-    corrected: 'test message',
-    isCorrect: true,
-    explanation: null,
+    score: 'perfect',
+    explanation: '',
   }),
 }))
 

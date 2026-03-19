@@ -1,21 +1,8 @@
 import { Router, Request, Response } from 'express'
-import { Mistral } from '@mistralai/mistralai'
 import { runSingleQuery } from '../db.js'
+import { getModel } from '../services/spark.js'
 
 const router = Router()
-
-let mistralClient: Mistral | null = null
-
-function getMistral(): Mistral {
-  if (!mistralClient) {
-    const apiKey = process.env.MISTRAL_API_KEY
-    if (!apiKey) {
-      throw new Error('MISTRAL_API_KEY not configured')
-    }
-    mistralClient = new Mistral({ apiKey })
-  }
-  return mistralClient
-}
 
 interface UserLanguageRecord {
   u: {
@@ -62,6 +49,43 @@ interface TranslationResponse {
   grammaticalForms?: GrammaticalForms
 }
 
+async function callLLM(prompt: string): Promise<string> {
+  const model = await getModel()
+
+  const response = await fetch(`${process.env.SPARK_BASE_URL || 'http://192.168.1.223:8000'}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a language expert and translator. Always respond with valid JSON only, no markdown formatting or extra text.',
+        },
+        { role: 'user', content: prompt },
+      ],
+      stream: false,
+      chat_template_kwargs: {
+        enable_thinking: false,
+      },
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error')
+    throw new Error(`vLLM API error: ${response.status} ${response.statusText} - ${errorText}`)
+  }
+
+  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('No response from vLLM')
+  }
+
+  return content
+}
+
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { word, context } = req.body
@@ -85,8 +109,6 @@ router.post('/', async (req: Request, res: Response) => {
 
     const nativeLanguage = userLang.u.native_language || 'French'
     const targetLanguage = userLang.l.language
-
-    const mistral = getMistral()
 
     const contextInfo = context ? `The word appears in this context: "${context}"` : ''
 
@@ -114,22 +136,7 @@ For other parts of speech:
 
 Respond with valid JSON only, no markdown.`
 
-    const response = await mistral.chat.complete({
-      model: 'mistral-small-latest',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a ${targetLanguage} language expert and translator. Always respond with valid JSON only, no markdown formatting or extra text. Be accurate with grammatical forms for ${targetLanguage}.`,
-        },
-        { role: 'user', content: prompt },
-      ],
-      responseFormat: { type: 'json_object' },
-    })
-
-    const content = response.choices?.[0]?.message?.content
-    if (!content) {
-      throw new Error('No response from Mistral')
-    }
+    const content = await callLLM(prompt)
 
     const textContent = typeof content === 'string' ? content : JSON.stringify(content)
 
@@ -170,8 +177,6 @@ router.post('/reverse', async (req: Request, res: Response) => {
       return
     }
 
-    const mistral = getMistral()
-
     const prompt = `Translate the word "${word}" from ${nativeLanguage} to ${targetLanguage}.
 
 Provide a JSON response with:
@@ -196,22 +201,7 @@ For other parts of speech:
 
 Respond with valid JSON only, no markdown.`
 
-    const response = await mistral.chat.complete({
-      model: 'mistral-small-latest',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a ${targetLanguage} language expert and translator. Always respond with valid JSON only, no markdown formatting or extra text. Be accurate with grammatical forms for ${targetLanguage}.`,
-        },
-        { role: 'user', content: prompt },
-      ],
-      responseFormat: { type: 'json_object' },
-    })
-
-    const content = response.choices?.[0]?.message?.content
-    if (!content) {
-      throw new Error('No response from Mistral')
-    }
+    const content = await callLLM(prompt)
 
     const textContent = typeof content === 'string' ? content : JSON.stringify(content)
 

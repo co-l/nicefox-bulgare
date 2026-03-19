@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import { runQuery, runSingleQuery } from '../db.js'
-import { generateChatResponse, analyzeGrammar, GrammarAnalysis } from '../services/mistral.js'
+import { generateChatResponse, analyzeGrammar, GrammarAnalysis } from '../services/spark.js'
 
 const router = Router()
 
